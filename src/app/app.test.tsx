@@ -2,7 +2,7 @@ import * as React from 'react';
 import App from '@app/index';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import '@testing-library/jest-dom';
+import { describe, it, expect, test, vi } from 'vitest';
 
 describe('App tests', () => {
   test('should render default App component', () => {
