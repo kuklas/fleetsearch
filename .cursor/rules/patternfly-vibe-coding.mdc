@@ -24,6 +24,12 @@ This rule applies to all code generation, refactoring, and review tasks involvin
 - **Reference official PatternFly components and avoid custom solutions unless explicitly allowed.**
 - **If a question arises, search these docs first before using external sources.**
 
+## Prototype Fidelity
+When creating new prototypes or pages:
+- **Ask the user if they want a low-fidelity prototype** if they haven't specified
+- If the user indicates they want low-fidelity (lo-fi), **reference and apply the [Low-Fidelity Prototype Rule](./create-low-fidelity.mdc)**
+- Low-fidelity prototypes focus on functionality and flow over visual polish
+
 ## Example Prompt
 > "When generating PatternFly code, use the guidelines and examples from all README and markdown files in this repository, especially those referenced in documentation/README.md. Follow the documented best practices for styling, accessibility, and component usage."
 

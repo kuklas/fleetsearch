@@ -18,6 +18,7 @@ Essential rules and guidelines for AI coders working with PatternFly React appli
 - [**Styling Rules**](./guidelines/styling-standards.md) - CSS and styling requirements
 - [**AI Prompt Guidance**](./guidelines/ai-prompt-guidance.md) - How to write effective AI prompts
 - [**Deployment Guide**](./guidelines/deployment-guide.md) - How to deploy prototypes
+- [**Low-Fidelity Prototypes**](../.cursor/rules/create-low-fidelity.mdc) - Guidelines for lo-fi prototyping
 
 ### 🧩 Component Rules
 - [**Layout Rules**](./components/layout/README.md) - Page structure requirements
