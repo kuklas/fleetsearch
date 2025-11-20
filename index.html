@@ -1,8 +1,6 @@
-<!doctype html><html lang="en-US"><head><meta charset="utf-8"><title>Patternfly Seed</title><meta id="appName" name="application-name" content="Patternfly Seed"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" type="image/svg+xml" href="/fleetsearch/images/favicon.png"><base href="/fleetsearch/" id="base-tag"><script>// Set base href dynamically based on environment
-    // For local dev, change to /, for GitHub Pages keep /fleetsearch/
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      document.getElementById('base-tag').setAttribute('href', '/');
-      // Also update favicon for local dev
+<!doctype html><html lang="en-US"><head><meta charset="utf-8"><title>Patternfly Seed</title><meta id="appName" name="application-name" content="Patternfly Seed"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="/fleetsearch/"><link rel="icon" type="image/svg+xml" href="/fleetsearch/images/favicon.png"><script>// Override base href for local development
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.port) {
+      document.querySelector('base').setAttribute('href', '/');
       document.querySelector('link[rel="icon"]').setAttribute('href', '/images/favicon.png');
     }</script><script>// Handle GitHub Pages routing
     (function(l) {
