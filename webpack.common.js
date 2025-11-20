@@ -6,7 +6,9 @@ import CopyPlugin from 'copy-webpack-plugin';
 import TsconfigPathsPlugin from 'tsconfig-paths-webpack-plugin';
 import Dotenv from 'dotenv-webpack';
 const BG_IMAGES_DIRNAME = 'bgimages';
-const ASSET_PATH = process.env.ASSET_PATH || '/fleetsearch/';
+// Use /fleetsearch/ for production (GitHub Pages), / for development
+// Check if ASSET_PATH is explicitly set, otherwise use environment-based default
+const ASSET_PATH = process.env.ASSET_PATH || '/';
 
 export default (env) => {
   return {

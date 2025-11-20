@@ -770,6 +770,9 @@ const VirtualMachines: React.FunctionComponent = () => {
       
       const clusterNodes = allClusters
         .map(cluster => {
+          // Check if cluster name matches search
+          const clusterMatches = searchLower ? cluster.name.toLowerCase().includes(searchLower) : true;
+          
           // Filter namespaces/projects
           const matchingNamespaces = cluster.namespaces.filter(namespace => {
             // Filter by showOnlyWithVMs
@@ -777,14 +780,18 @@ const VirtualMachines: React.FunctionComponent = () => {
               return false;
             }
             // Filter by search query (search in project/namespace name)
+            // If cluster matches, show all namespaces; otherwise filter by namespace name
             if (searchLower) {
+              if (clusterMatches) {
+                return true; // Show all namespaces if cluster matches
+              }
               return namespace.name.toLowerCase().includes(searchLower);
             }
             return true;
           });
           
-          // Only include cluster if it has matching namespaces
-          if (matchingNamespaces.length === 0) {
+          // Include cluster if cluster name matches OR it has matching namespaces
+          if (!clusterMatches && matchingNamespaces.length === 0) {
             return null;
           }
           
@@ -904,7 +911,7 @@ const VirtualMachines: React.FunctionComponent = () => {
     <div className="vm-sidebar" style={{ width: `${sidebarWidth}px`, minWidth: '200px', maxWidth: '600px' }}>
       <div style={{ marginBottom: '16px', flexShrink: 0 }}>
         <SearchInput
-          placeholder="Search projects..."
+          placeholder="Search clusters or projects"
           value={sidebarSearch}
           onChange={(_event, value) => {
             setSidebarSearch(value);
@@ -925,36 +932,6 @@ const VirtualMachines: React.FunctionComponent = () => {
       </div>
 
       <Divider style={{ margin: '16px calc(-16px - 8px) 16px -16px', width: 'calc(100% + 32px + 8px)', flexShrink: 0 }} />
-
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '8px 0',
-          marginBottom: '16px',
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Tooltip content={isTreeExpanded ? 'Collapse all' : 'Expand all'}>
-            <Button
-              variant="plain"
-              aria-label={isTreeExpanded ? 'Collapse all' : 'Expand all'}
-              onClick={() => {
-                setIsTreeExpanded(!isTreeExpanded);
-              }}
-              style={{ padding: '4px' }}
-            >
-              {isTreeExpanded ? <AngleDoubleUpIcon /> : <AngleDoubleDownIcon />}
-            </Button>
-          </Tooltip>
-          <span style={{ fontWeight: 500 }}>Projects</span>
-        </div>
-        <Button variant="link" icon={<PlusCircleIcon />} iconPosition="start">
-          Create project
-        </Button>
-      </div>
 
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
         <TreeView
@@ -1302,30 +1279,101 @@ const VirtualMachines: React.FunctionComponent = () => {
             </FlexItem>
             <FlexItem>
               <Dropdown
-                isOpen={isActionsOpen}
-                onSelect={() => setIsActionsOpen(false)}
-                onOpenChange={(isOpen: boolean) => setIsActionsOpen(isOpen)}
+                isOpen={isSavedSearchesOpen}
+                onSelect={() => setIsSavedSearchesOpen(false)}
+                onOpenChange={(isOpen: boolean) => setIsSavedSearchesOpen(isOpen)}
                 toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-                  <MenuToggle ref={toggleRef} onClick={() => setIsActionsOpen(!isActionsOpen)} isExpanded={isActionsOpen} variant="secondary">
+                  <MenuToggle ref={toggleRef} onClick={() => setIsSavedSearchesOpen(!isSavedSearchesOpen)} isExpanded={isSavedSearchesOpen} variant="secondary">
                     Saved searches
                   </MenuToggle>
                 )}
               >
                 <DropdownList>
-                  <DropdownItem isDisabled>
-                    <div
-                      style={{
-                        padding: '16px',
-                        textAlign: 'center',
-                        color: 'var(--pf-t--global--text--color--subtle)',
-                        width: '280px',
-                        whiteSpace: 'normal',
-                        lineHeight: '1.5',
-                      }}
-                    >
-                      When you search for something and click 'Save search', it'll show up here.
-                    </div>
-                  </DropdownItem>
+                  {savedSearches.length === 0 ? (
+                    <DropdownItem isDisabled>
+                      <div
+                        style={{
+                          padding: '16px',
+                          textAlign: 'center',
+                          color: 'var(--pf-t--global--text--color--subtle)',
+                          width: '280px',
+                          whiteSpace: 'normal',
+                          lineHeight: '1.5',
+                        }}
+                      >
+                        When you search for something and click 'Save search', it'll show up here.
+                      </div>
+                    </DropdownItem>
+                  ) : (
+                    <>
+                      <DropdownItem isDisabled>
+                        <div
+                          style={{
+                            padding: '8px 16px',
+                            fontWeight: 600,
+                            fontSize: '0.875rem',
+                            borderBottom: '1px solid var(--pf-t--global--border--color--default)',
+                            marginBottom: '4px',
+                          }}
+                        >
+                          Saved searches
+                        </div>
+                      </DropdownItem>
+                      {savedSearches.map(search => (
+                        <DropdownItem
+                          key={search.id}
+                          onClick={() => {
+                            // Load the saved search
+                            setAdvancedSearchName(search.advancedSearchName);
+                            setAdvancedSearchCluster(search.advancedSearchCluster);
+                            setAdvancedSearchProject(search.advancedSearchProject);
+                            setAdvancedSearchDescription(search.advancedSearchDescription);
+                            setAdvancedSearchStatus(search.advancedSearchStatus);
+                            setAdvancedSearchOS(search.advancedSearchOS);
+                            setAdvancedSearchVCPUOperator(search.advancedSearchVCPUOperator);
+                            setAdvancedSearchVCPUValue(search.advancedSearchVCPUValue);
+                            setAdvancedSearchMemoryOperator(search.advancedSearchMemoryOperator);
+                            setAdvancedSearchMemoryValue(search.advancedSearchMemoryValue);
+                            setAdvancedSearchMemoryUnit(search.advancedSearchMemoryUnit);
+                            setAdvancedSearchStorageClass(search.advancedSearchStorageClass);
+                            setAdvancedSearchGPU(search.advancedSearchGPU);
+                            setAdvancedSearchHostDevices(search.advancedSearchHostDevices);
+                            setAdvancedSearchDateCreated(search.advancedSearchDateCreated);
+                            setAdvancedSearchIPAddress(search.advancedSearchIPAddress);
+                            setIsAdvancedSearchActive(true);
+                            setIsSavedSearchesOpen(false);
+                            setPage(1);
+                          }}
+                        >
+                          <Flex alignItems={{ default: 'alignItemsCenter' }} justifyContent={{ default: 'justifyContentSpaceBetween' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                            <FlexItem flex={{ default: 'flex_1' }}>
+                              <div>
+                                <div style={{ fontWeight: 500 }}>{search.name}</div>
+                                {search.description && (
+                                  <div style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--subtle)' }}>
+                                    {search.description}
+                                  </div>
+                                )}
+                              </div>
+                            </FlexItem>
+                            <FlexItem>
+                              <Button
+                                variant="plain"
+                                aria-label={`Delete ${search.name}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSavedSearches(prev => prev.filter(s => s.id !== search.id));
+                                }}
+                                style={{ padding: '4px' }}
+                              >
+                                <TimesIcon />
+                              </Button>
+                            </FlexItem>
+                          </Flex>
+                        </DropdownItem>
+                      ))}
+                    </>
+                  )}
                 </DropdownList>
               </Dropdown>
             </FlexItem>
@@ -1362,8 +1410,8 @@ const VirtualMachines: React.FunctionComponent = () => {
 
           {/* Search Results Toolbar with Filters */}
           {isAdvancedSearchActive && (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ borderBottom: 'none' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0px' }}>
                 <Title headingLevel="h2" size="xl">Search results</Title>
                 <Button
                   variant="link"
@@ -1853,7 +1901,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                   </Dropdown>
                 </FlexItem>
               </Flex>
-              <Flex style={{ marginTop: '0px' }} alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+              <Flex style={{ marginTop: '0px', marginBottom: '0px', borderBottom: 'none' }} alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
                 {advancedSearchName && (
                   <FlexItem>
                     <Label
@@ -1968,8 +2016,19 @@ const VirtualMachines: React.FunctionComponent = () => {
           )}
         </div>
       </div>
+      
+      {/* Spacer to prevent line from showing above toolbar */}
+      {isAdvancedSearchActive && (
+        <div style={{ 
+          height: '1px', 
+          backgroundColor: 'var(--pf-t--global--background--color--primary--default)',
+          marginTop: '-1px',
+          position: 'relative',
+          zIndex: 1
+        }} />
+      )}
 
-      <div className={`vm-content-wrapper ${isSidebarCollapsed || isAdvancedSearchActive ? 'sidebar-collapsed' : ''}`}>
+      <div className={`vm-content-wrapper ${isSidebarCollapsed || isAdvancedSearchActive ? 'sidebar-collapsed' : ''}`} style={isAdvancedSearchActive ? { borderTop: 'none' } : undefined}>
         {!isSidebarCollapsed && !isAdvancedSearchActive && sidebar}
 
         {!isAdvancedSearchActive && !isSidebarCollapsed && (
@@ -2527,10 +2586,13 @@ const VirtualMachines: React.FunctionComponent = () => {
             </EmptyState>
           ) : (
             <>
-              <Toolbar>
-                <ToolbarContent style={{ gap: '8px' }}>
+              <Toolbar 
+                className={isAdvancedSearchActive ? 'advanced-search-toolbar' : ''}
+                style={{ borderTop: 'none', borderBottom: 'none' }}
+              >
+                <ToolbarContent style={{ gap: '8px', borderTop: 'none', alignItems: 'center' }}>
                   {/* Bulk selector */}
-                  <ToolbarItem>
+                  <ToolbarItem style={isAdvancedSearchActive ? { alignSelf: 'center' } : undefined}>
                     <Dropdown
                       isOpen={isBulkSelectOpen}
                       onSelect={() => {}}
@@ -2544,7 +2606,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                           style={{
                             border: '1px solid var(--pf-t--global--border--color--default)',
                             borderRadius: 'var(--pf-t--global--border--radius--small)',
-                            padding: '6px 8px',
+                            padding: isAdvancedSearchActive ? '10px 12px' : '6px 8px',
                             minWidth: 'auto',
                           }}
                         >
@@ -2605,7 +2667,9 @@ const VirtualMachines: React.FunctionComponent = () => {
                               variant="default"
                               isDisabled={!!selectedClusterFromTree || !!selectedProjectFromTree}
                               style={{
-                                backgroundColor: (selectedClusterFromTree || selectedProjectFromTree || clusterFilter !== 'All') ? 'var(--pf-t--global--background--color--primary--hover)' : undefined
+                                backgroundColor: (selectedClusterFromTree || selectedProjectFromTree || clusterFilter !== 'All') ? 'var(--pf-t--global--background--color--primary--hover)' : undefined,
+                                opacity: (selectedClusterFromTree || selectedProjectFromTree) ? 0.6 : 1,
+                                cursor: (selectedClusterFromTree || selectedProjectFromTree) ? 'not-allowed' : 'pointer'
                               }}
                             >
                               Cluster{(selectedClusterFromTree || selectedProjectFromTree || clusterFilter !== 'All') ? ' 1' : ''}
@@ -2676,15 +2740,30 @@ const VirtualMachines: React.FunctionComponent = () => {
                             toggle={(toggleRef: React.Ref<MenuToggleElement>) => {
                               const projectFilterArray = Array.isArray(projectFilter) ? projectFilter : (projectFilter !== 'All' ? [projectFilter] : []);
                               const selectedCount = selectedProjectFromTree ? 1 : projectFilterArray.length;
+                              // Logic:
+                              // - If cluster is selected from tree: Project dropdown should be ENABLED
+                              // - If project is selected from tree: Project dropdown should be DISABLED (same as cluster dropdown)
+                              // - If nothing selected from tree: Both dropdowns enabled
+                              const shouldDisableProject = !!selectedProjectFromTree;
+                              const shouldEnableProject = selectedClusterFromTree && !selectedProjectFromTree;
+                              const isProjectEnabled = shouldEnableProject || (!shouldDisableProject && !selectedClusterFromTree);
                               return (
                                 <MenuToggle 
                                   ref={toggleRef} 
-                                  onClick={() => setIsProjectFilterOpen(!isProjectFilterOpen)} 
+                                  onClick={() => {
+                                    if (isProjectEnabled) {
+                                      setIsProjectFilterOpen(!isProjectFilterOpen);
+                                    }
+                                  }} 
                                   isExpanded={isProjectFilterOpen} 
                                   variant="default"
-                                  isDisabled={!!selectedProjectFromTree}
+                                  isDisabled={!isProjectEnabled}
+                                  className={selectedClusterFromTree && !selectedProjectFromTree ? 'project-dropdown-enabled' : ''}
                                   style={{
-                                    backgroundColor: (selectedProjectFromTree || projectFilter !== 'All') ? 'var(--pf-t--global--background--color--primary--hover)' : undefined
+                                    backgroundColor: (selectedProjectFromTree || projectFilter !== 'All') ? 'var(--pf-t--global--background--color--primary--hover)' : undefined,
+                                    opacity: isProjectEnabled ? 1 : 0.6,
+                                    cursor: isProjectEnabled ? 'pointer' : 'not-allowed',
+                                    pointerEvents: isProjectEnabled ? 'auto' : 'none'
                                   }}
                                 >
                                   Project{selectedCount > 0 ? ` ${selectedCount}` : ''}
@@ -2955,7 +3034,25 @@ const VirtualMachines: React.FunctionComponent = () => {
                                 <Button
                                   variant="plain"
                                   onClick={() => {
-                                    setSelectedTreeNode(null);
+                                    // When removing project chip, if there's a parent cluster, set selection back to cluster
+                                    // This enables the project dropdown for multi-select (scenario 1 behavior)
+                                    if (selectedProjectFromTree) {
+                                      const namespace = getAllNamespaces().find(n => n.name === selectedProjectFromTree);
+                                      if (namespace) {
+                                        const cluster = getAllClusters().find(c => c.id === namespace.clusterId);
+                                        if (cluster) {
+                                          // Set selection back to cluster to enable project dropdown
+                                          setSelectedTreeNode(`cluster-${cluster.id}`);
+                                          setProjectFilter('All'); // Reset project filter
+                                        } else {
+                                          setSelectedTreeNode(null);
+                                        }
+                                      } else {
+                                        setSelectedTreeNode(null);
+                                      }
+                                    } else {
+                                      setSelectedTreeNode(null);
+                                    }
                                   }}
                                   aria-label="Remove project filter"
                                   style={{ padding: '0', minWidth: 'auto', height: 'auto' }}

@@ -206,3 +206,142 @@ body.resizing-sidebar * {
   text-overflow: ellipsis;
 }
 
+/* Remove border-top from Toolbar in advanced search results - only borders, not spacing */
+.vm-main-content .pf-v6-c-toolbar,
+.vm-main-content .pf-v6-c-toolbar.pf-v6-m-sticky-top,
+.vm-main-content .pf-v6-c-toolbar.pf-v6-m-page-insets {
+  border-top: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+
+.vm-main-content .pf-v6-c-toolbar__content,
+.vm-main-content .pf-v6-c-toolbar__content::before,
+.vm-main-content .pf-v6-c-toolbar__content::after {
+  border-top: none !important;
+  border-bottom: none !important;
+}
+
+.pf-v6-c-toolbar__item,
+.vm-main-content .pf-v6-c-toolbar__item {
+  border-top: none !important;
+}
+
+/* Remove any border/margin from advanced search filter chips section */
+.vm-main-content > div > div[style*="borderBottom"] {
+  border-bottom: none !important;
+}
+
+.vm-main-content .pf-v6-c-flex[style*="marginTop"] {
+  margin-bottom: 0 !important;
+  border-bottom: none !important;
+}
+
+/* Remove any visual separator between filter chips and toolbar */
+.vm-main-content > div > div:last-of-type {
+  border-bottom: none !important;
+}
+
+/* Target the specific Toolbar that comes after filter chips in advanced search */
+.vm-content-wrapper.sidebar-collapsed .vm-main-content .pf-v6-c-toolbar {
+  border-top: none !important;
+  border-bottom: none !important;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+/* Very specific targeting for advanced search toolbar - remove or hide borders */
+.advanced-search-toolbar,
+.advanced-search-toolbar.pf-v6-c-toolbar {
+  border-top: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+
+.advanced-search-toolbar .pf-v6-c-toolbar__content,
+.advanced-search-toolbar .pf-v6-c-toolbar__content::before,
+.advanced-search-toolbar .pf-v6-c-toolbar__content::after {
+  border-top: none !important;
+  border-bottom: none !important;
+}
+
+/* Hide any line/divider above the toolbar in advanced search */
+.advanced-search-toolbar::before,
+.advanced-search-toolbar::after,
+.advanced-search-toolbar .pf-v6-c-toolbar__content::before,
+.advanced-search-toolbar .pf-v6-c-toolbar__content::after {
+  display: none !important;
+  border: none !important;
+}
+
+/* Make any remaining border white/transparent to hide it */
+.vm-main-content .advanced-search-toolbar,
+.vm-main-content .advanced-search-toolbar .pf-v6-c-toolbar__content {
+  border-top: 1px solid var(--pf-t--global--background--color--primary--default) !important;
+}
+
+/* Also check if the line is coming from the filter chips section above */
+.vm-main-content > div > div > div:last-child {
+  border-bottom: 1px solid var(--pf-t--global--background--color--primary--default) !important;
+}
+
+/* Remove border from filter chips section that might create visual line */
+.vm-main-content > div > div > div:last-child .pf-v6-c-flex:last-child {
+  border-bottom: none !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Remove any border from the wrapper div containing filter chips */
+.vm-main-content > div > div[style*="borderBottom"] {
+  border-bottom: none !important;
+}
+
+/* Remove borders from Toolbar in advanced search - only borders, keep spacing */
+.vm-content-wrapper.sidebar-collapsed .vm-main-content .pf-v6-c-toolbar,
+.vm-content-wrapper.sidebar-collapsed .vm-main-content .pf-v6-c-toolbar::before,
+.vm-content-wrapper.sidebar-collapsed .vm-main-content .pf-v6-c-toolbar::after {
+  border-top: none !important;
+  border-bottom: none !important;
+}
+
+/* Align bulk selector with other toolbar items in advanced search */
+.advanced-search-toolbar .pf-v6-c-toolbar__item:first-child {
+  align-self: center !important;
+}
+
+.advanced-search-toolbar .pf-v6-c-toolbar__content {
+  align-items: center !important;
+}
+
+/* Force project dropdown to look enabled when cluster is selected from tree */
+.vm-main-content .project-dropdown-enabled,
+.vm-main-content .project-dropdown-enabled.pf-v6-c-menu-toggle,
+.vm-main-content .project-dropdown-enabled.pf-v6-c-menu-toggle[disabled],
+.vm-main-content .project-dropdown-enabled.pf-v6-c-menu-toggle[aria-disabled="true"] {
+  opacity: 1 !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  color: var(--pf-t--global--text--color--regular) !important;
+  background-color: var(--pf-t--global--background--color--primary--default) !important;
+}
+
+.vm-main-content .project-dropdown-enabled:hover,
+.vm-main-content .project-dropdown-enabled.pf-v6-c-menu-toggle:hover {
+  background-color: var(--pf-t--global--background--color--primary--hover) !important;
+  opacity: 1 !important;
+}
+
+/* Override PatternFly disabled state styling */
+.vm-main-content .project-dropdown-enabled.pf-v6-c-menu-toggle[disabled],
+.vm-main-content .project-dropdown-enabled.pf-v6-c-menu-toggle[aria-disabled="true"] {
+  opacity: 1 !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+.vm-main-content .project-dropdown-enabled.pf-v6-c-menu-toggle[disabled]:hover,
+.vm-main-content .project-dropdown-enabled.pf-v6-c-menu-toggle[aria-disabled="true"]:hover {
+  background-color: var(--pf-t--global--background--color--primary--hover) !important;
+}
+

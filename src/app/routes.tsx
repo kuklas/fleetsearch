@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { Route, Routes } from 'react-router-dom';
-import { Dashboard } from '@app/Dashboard/Dashboard';
 import { Support } from '@app/Support/Support';
 import { GeneralSettings } from '@app/Settings/General/GeneralSettings';
 import { ProfileSettings } from '@app/Settings/Profile/ProfileSettings';
@@ -26,10 +25,10 @@ export type AppRouteConfig = IAppRoute | IAppRouteGroup;
 
 const routes: AppRouteConfig[] = [
   {
-    element: <Dashboard />,
+    element: <Pods />,
     exact: true,
     path: '/',
-    title: 'PatternFly Seed | Main Dashboard',
+    title: 'PatternFly Seed | Pods',
   },
   {
     element: <VirtualMachines />,

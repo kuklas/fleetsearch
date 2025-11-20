@@ -10,6 +10,10 @@ import TerserJSPlugin from 'terser-webpack-plugin';
 export default merge(common('production'), {
   mode: 'production',
   devtool: 'source-map',
+  // Set ASSET_PATH for GitHub Pages
+  output: {
+    publicPath: '/fleetsearch/',
+  },
   optimization: {
     minimizer: [
       new TerserJSPlugin({}),
