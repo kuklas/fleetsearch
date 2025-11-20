@@ -345,11 +345,27 @@ body.resizing-sidebar * {
   background-color: var(--pf-t--global--background--color--primary--hover) !important;
 }
 
-/* Make disabled dropdowns look consistent with disabled buttons - use PatternFly's default disabled styling */
+/* Make disabled dropdowns look exactly like PatternFly disabled buttons */
 .vm-main-content .pf-v6-c-menu-toggle[disabled],
 .vm-main-content .pf-v6-c-menu-toggle[aria-disabled="true"] {
-  /* Let PatternFly handle disabled styling - remove custom overrides */
-  opacity: var(--pf-t--global--opacity--disabled, 0.6) !important;
+  /* Match PatternFly disabled button styling exactly - light grey background, dark grey text */
+  opacity: 1 !important;
   cursor: not-allowed !important;
+  background-color: #f0f0f0 !important; /* Light grey background like disabled buttons */
+  color: #6a6e73 !important; /* Dark grey text like disabled buttons */
+  border-color: #d2d2d2 !important; /* Light grey border */
+}
+
+.vm-main-content .pf-v6-c-menu-toggle[disabled]:hover,
+.vm-main-content .pf-v6-c-menu-toggle[aria-disabled="true"]:hover,
+.vm-main-content .pf-v6-c-menu-toggle[disabled]:focus,
+.vm-main-content .pf-v6-c-menu-toggle[aria-disabled="true"]:focus,
+.vm-main-content .pf-v6-c-menu-toggle[disabled]:active,
+.vm-main-content .pf-v6-c-menu-toggle[aria-disabled="true"]:active {
+  opacity: 1 !important;
+  background-color: #f0f0f0 !important; /* Keep light grey on hover/focus */
+  color: #6a6e73 !important; /* Keep dark grey text */
+  border-color: #d2d2d2 !important;
+  box-shadow: none !important;
 }
 

@@ -4,6 +4,7 @@ import {
   TreeView,
   TreeViewDataItem,
   Label,
+  Badge,
   Tooltip,
   Flex,
   FlexItem,
@@ -55,6 +56,7 @@ import {
   Nav,
   NavList,
   NavItem,
+  Badge,
 } from '@patternfly/react-core';
 import {
   ServerIcon,
@@ -238,9 +240,9 @@ const VirtualMachines: React.FunctionComponent = () => {
   const [sidebarWidth, setSidebarWidth] = React.useState(350);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
   const [searchValue, setSearchValue] = React.useState('');
-  const [statusFilter, setStatusFilter] = React.useState<string>('All');
-  const [osFilter, setOSFilter] = React.useState<string>('All');
-  const [clusterFilter, setClusterFilter] = React.useState<string>('All');
+  const [statusFilter, setStatusFilter] = React.useState<string | string[]>('All');
+  const [osFilter, setOSFilter] = React.useState<string | string[]>('All');
+  const [clusterFilter, setClusterFilter] = React.useState<string | string[]>('All');
   const [projectFilter, setProjectFilter] = React.useState<string | string[]>('All');
   const [isClusterFilterOpen, setIsClusterFilterOpen] = React.useState(false);
   const [isProjectFilterOpen, setIsProjectFilterOpen] = React.useState(false);
@@ -636,8 +638,14 @@ const VirtualMachines: React.FunctionComponent = () => {
         // Show all VMs from all clusters - no cluster filtering
       } else {
         const effectiveClusterFilter = selectedClusterFromTree || clusterForSelectedProject || clusterFilter;
-        if (effectiveClusterFilter && effectiveClusterFilter !== 'All' && vm.cluster !== effectiveClusterFilter) {
-          return false;
+        if (effectiveClusterFilter && effectiveClusterFilter !== 'All') {
+          if (Array.isArray(effectiveClusterFilter)) {
+            if (effectiveClusterFilter.length === 0 || !effectiveClusterFilter.includes(vm.cluster)) {
+              return false;
+            }
+          } else if (vm.cluster !== effectiveClusterFilter) {
+            return false;
+          }
         }
       }
       
@@ -683,7 +691,15 @@ const VirtualMachines: React.FunctionComponent = () => {
         }
       }
 
-      const matchesStatus = statusFilter === 'All' || vm.status === statusFilter;
+      // Apply status filter (can be array for multi-select)
+      let matchesStatus = true;
+      if (statusFilter !== 'All') {
+        if (Array.isArray(statusFilter)) {
+          matchesStatus = statusFilter.length === 0 || statusFilter.includes(vm.status);
+        } else {
+          matchesStatus = vm.status === statusFilter;
+        }
+      }
       // Search in VM name and labels
       const searchLower = searchValue.toLowerCase();
       const matchesSearch = !searchValue || 
@@ -969,25 +985,6 @@ const VirtualMachines: React.FunctionComponent = () => {
         <TreeView
           key={treeKey}
           data={treeData}
-          onToggle={(_event, item) => {
-            // Handle toggle for "all-clusters" - this is triggered by the TreeView's default arrow
-            // But we handle it manually with the button, so we can ignore it here
-            // or sync it with our manual handling
-            if (item.id === 'all-clusters') {
-              // The button handles expand/collapse, so we just sync the state
-              const isCurrentlyExpanded = expandedNodes.includes('all-clusters');
-              const allClusterIds = getAllClusters().map(c => `cluster-${c.id}`);
-              
-              if (isCurrentlyExpanded) {
-                // Collapse: remove all-clusters and all cluster nodes
-                setExpandedNodes(expandedNodes.filter(id => id !== 'all-clusters' && !allClusterIds.includes(id)));
-              } else {
-                // Expand: add all-clusters and all cluster nodes
-                setExpandedNodes([...new Set([...expandedNodes, 'all-clusters', ...allClusterIds])]);
-              }
-              setTreeKey(prev => prev + 1); // Force re-render
-            }
-          }}
           onSelect={(_event, item) => {
             if (item.id) {
               // Allow selection of all-clusters node
@@ -2522,21 +2519,71 @@ const VirtualMachines: React.FunctionComponent = () => {
                   <Card style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <CardBody style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                       <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                        <FlexItem>
-                          <Title headingLevel="h4" size="md">Cluster</Title>
-                        </FlexItem>
-                        <FlexItem>
-                          <div style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>
-                            {selectedClusterFromTree || clusterForSelectedProject || clusterFilter !== 'All' 
-                              ? (selectedClusterFromTree || clusterForSelectedProject || clusterFilter)
-                              : 'All clusters'}
-                          </div>
-                        </FlexItem>
-                        <FlexItem>
-                          <div style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>
-                            Project {selectedProjectFromTree || (Array.isArray(projectFilter) && projectFilter.length > 0 && projectFilter[0] !== 'All' ? projectFilter[0] : projectFilter !== 'All' ? projectFilter : 'default')}
-                          </div>
-                        </FlexItem>
+                        {selectedProjectFromTree ? (
+                          // If project is selected, show Cluster and Project names
+                          <>
+                            <FlexItem>
+                              <Title headingLevel="h4" size="md">Cluster</Title>
+                            </FlexItem>
+                            <FlexItem>
+                              <div style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>
+                                {clusterForSelectedProject || 'N/A'}
+                              </div>
+                            </FlexItem>
+                            <FlexItem>
+                              <Title headingLevel="h4" size="md" style={{ marginTop: '16px' }}>Project</Title>
+                            </FlexItem>
+                            <FlexItem>
+                              <div style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>
+                                {selectedProjectFromTree}
+                              </div>
+                            </FlexItem>
+                          </>
+                        ) : (selectedClusterFromTree || clusterFilter !== 'All') ? (
+                          // If cluster is selected, show badges with counts
+                          <>
+                            <FlexItem>
+                              <Title headingLevel="h4" size="md">Cluster</Title>
+                            </FlexItem>
+                            <FlexItem>
+                              <div style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>
+                                {selectedClusterFromTree || clusterFilter}
+                              </div>
+                            </FlexItem>
+                            <FlexItem>
+                              <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                                <Badge>{(() => {
+                                  const clusterName = selectedClusterFromTree || clusterFilter;
+                                  const cluster = getAllClusters().find(c => c.name === clusterName);
+                                  if (cluster) {
+                                    const namespaces = getAllNamespaces().filter(n => n.clusterId === cluster.id);
+                                    return namespaces.length;
+                                  }
+                                  return 0;
+                                })()}</Badge>
+                                <span style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>Project</span>
+                              </Flex>
+                            </FlexItem>
+                            <FlexItem>
+                              <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                                <Badge>{filteredVMs.length}</Badge>
+                                <span style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>Virtual machines</span>
+                              </Flex>
+                            </FlexItem>
+                          </>
+                        ) : (
+                          // Default: show All clusters
+                          <>
+                            <FlexItem>
+                              <Title headingLevel="h4" size="md">Cluster</Title>
+                            </FlexItem>
+                            <FlexItem>
+                              <div style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>
+                                All clusters
+                              </div>
+                            </FlexItem>
+                          </>
+                        )}
                       </Flex>
                     </CardBody>
                   </Card>
@@ -2690,7 +2737,30 @@ const VirtualMachines: React.FunctionComponent = () => {
               </Title>
               <EmptyStateBody>No virtual machines match the selected filters.</EmptyStateBody>
               <EmptyStateActions>
-                <Button variant="primary" onClick={() => setStatusFilter('All')}>
+                <Button 
+                  variant="primary" 
+                  onClick={() => {
+                    // Clear all filters
+                    setSearchValue('');
+                    setStatusFilter('All');
+                    setOSFilter('All');
+                    setClusterFilter('All');
+                    setProjectFilter('All');
+                    setSelectedTreeNode(null);
+                    // Clear advanced search if active
+                    if (isAdvancedSearchActive) {
+                      setAdvancedSearchName('');
+                      setAdvancedSearchCluster('all');
+                      setAdvancedSearchProject('all');
+                      setAdvancedSearchStatus('');
+                      setAdvancedSearchOS('');
+                      setAdvancedSearchVCPUValue('');
+                      setAdvancedSearchMemoryValue('');
+                      setAdvancedSearchIPAddress('');
+                      setIsAdvancedSearchActive(false);
+                    }
+                  }}
+                >
                   Clear filters
                 </Button>
               </EmptyStateActions>
@@ -2768,7 +2838,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                       <ToolbarItem>
                           <Dropdown
                             isOpen={isClusterFilterOpen}
-                            onSelect={() => setIsClusterFilterOpen(false)}
+                            onSelect={() => {}} // Don't close on selection
                             onOpenChange={(isOpen: boolean) => setIsClusterFilterOpen(isOpen)}
                             toggle={(toggleRef: React.Ref<MenuToggleElement>) => {
                               const isDisabled = (!!selectedClusterFromTree || !!selectedProjectFromTree) && selectedTreeNode !== 'all-clusters';
@@ -2783,7 +2853,18 @@ const VirtualMachines: React.FunctionComponent = () => {
                                     backgroundColor: (selectedClusterFromTree || selectedProjectFromTree || clusterFilter !== 'All') ? 'var(--pf-t--global--background--color--primary--hover)' : undefined
                                   }}
                                 >
-                                  Cluster{(selectedClusterFromTree || selectedProjectFromTree || clusterFilter !== 'All') ? ' 1' : ''}
+                                  <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                                    <FlexItem>Cluster</FlexItem>
+                                    {(() => {
+                                      const clusterFilterArray = Array.isArray(clusterFilter) ? clusterFilter : (clusterFilter !== 'All' ? [clusterFilter] : []);
+                                      const selectedCount = selectedClusterFromTree || selectedProjectFromTree ? 1 : clusterFilterArray.length;
+                                      return selectedCount > 0 ? (
+                                        <FlexItem>
+                                          <Badge isRead>{selectedCount}</Badge>
+                                        </FlexItem>
+                                      ) : null;
+                                    })()}
+                                  </Flex>
                                 </MenuToggle>
                               );
                               return isDisabled ? (
@@ -2799,7 +2880,6 @@ const VirtualMachines: React.FunctionComponent = () => {
                             onClick={() => {
                               setClusterFilter('All');
                               setSelectedTreeNode(null); // Clear tree selection when 'All' is chosen
-                              setIsClusterFilterOpen(false);
                             }}
                           >
                             <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
@@ -2816,30 +2896,41 @@ const VirtualMachines: React.FunctionComponent = () => {
                               </FlexItem>
                             </Flex>
                           </DropdownItem>
-                          {getAllClusters().map(cluster => (
-                            <DropdownItem
-                              key={cluster.id}
-                              onClick={() => {
-                                setClusterFilter(cluster.name);
-                                setSelectedTreeNode(`cluster-${cluster.id}`); // Set tree selection to match
-                                setIsClusterFilterOpen(false);
-                              }}
-                            >
-                              <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                                <FlexItem>
-                                  <Checkbox
-                                    id={`cluster-filter-${cluster.id}`}
-                                    isChecked={clusterFilter === cluster.name}
-                                    onChange={() => {}}
-                                    onClick={(e) => e.stopPropagation()}
-                                  />
-                                </FlexItem>
-                                <FlexItem>
-                                  {cluster.name}
-                                </FlexItem>
-                              </Flex>
-                            </DropdownItem>
-                          ))}
+                          {getAllClusters().map(cluster => {
+                            const clusterFilterArray = Array.isArray(clusterFilter) ? clusterFilter : (clusterFilter !== 'All' ? [clusterFilter] : []);
+                            const isSelected = clusterFilterArray.includes(cluster.name);
+                            return (
+                              <DropdownItem
+                                key={cluster.id}
+                                onClick={() => {
+                                  if (isSelected) {
+                                    // Remove from selection
+                                    const newFilter = clusterFilterArray.filter(c => c !== cluster.name);
+                                    setClusterFilter(newFilter.length === 0 ? 'All' : newFilter);
+                                  } else {
+                                    // Add to selection
+                                    const newFilter = clusterFilter === 'All' ? [cluster.name] : [...clusterFilterArray, cluster.name];
+                                    setClusterFilter(newFilter);
+                                  }
+                                  // Don't set tree selection for multi-select
+                                }}
+                              >
+                                <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                                  <FlexItem>
+                                    <Checkbox
+                                      id={`cluster-filter-${cluster.id}`}
+                                      isChecked={isSelected}
+                                      onChange={() => {}}
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                  </FlexItem>
+                                  <FlexItem>
+                                    {cluster.name}
+                                  </FlexItem>
+                                </Flex>
+                              </DropdownItem>
+                            );
+                          })}
                         </DropdownList>
                           </Dropdown>
                         </ToolbarItem>
@@ -2847,12 +2938,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                         <ToolbarItem>
                             <Dropdown
                               isOpen={isProjectFilterOpen}
-                              onSelect={() => {
-                                // Only close if not in multi-select mode (when cluster is selected from tree)
-                                if (!selectedClusterFromTree) {
-                                  setIsProjectFilterOpen(false);
-                                }
-                              }}
+                              onSelect={() => {}} // Don't close on selection - allow multi-select
                               onOpenChange={(isOpen: boolean) => setIsProjectFilterOpen(isOpen)}
                               toggle={(toggleRef: React.Ref<MenuToggleElement>) => {
                                 const projectFilterArray = Array.isArray(projectFilter) ? projectFilter : (projectFilter !== 'All' ? [projectFilter] : []);
@@ -2882,7 +2968,14 @@ const VirtualMachines: React.FunctionComponent = () => {
                                       backgroundColor: (selectedProjectFromTree || projectFilter !== 'All') ? 'var(--pf-t--global--background--color--primary--hover)' : undefined
                                     }}
                                   >
-                                    Project{selectedCount > 0 ? ` ${selectedCount}` : ''}
+                                    <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                                      <FlexItem>Project</FlexItem>
+                                      {selectedCount > 0 && (
+                                        <FlexItem>
+                                          <Badge isRead>{selectedCount}</Badge>
+                                        </FlexItem>
+                                      )}
+                                    </Flex>
                                   </MenuToggle>
                                 );
                                 return !isProjectEnabled ? (
@@ -2979,38 +3072,64 @@ const VirtualMachines: React.FunctionComponent = () => {
                         <ToolbarItem>
                           <Dropdown
                             isOpen={isStatusFilterOpen}
-                            onSelect={() => setIsStatusFilterOpen(false)}
+                            onSelect={() => {}} // Don't close on selection
                             onOpenChange={(isOpen: boolean) => setIsStatusFilterOpen(isOpen)}
-                            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-                              <MenuToggle ref={toggleRef} onClick={() => setIsStatusFilterOpen(!isStatusFilterOpen)} isExpanded={isStatusFilterOpen} variant="default">
-                                Status: {statusFilter}
-                              </MenuToggle>
-                            )}
+                            toggle={(toggleRef: React.Ref<MenuToggleElement>) => {
+                              const statusFilterArray = Array.isArray(statusFilter) ? statusFilter : (statusFilter !== 'All' ? [statusFilter] : []);
+                              const selectedCount = statusFilterArray.length;
+                              return (
+                                <MenuToggle ref={toggleRef} onClick={() => setIsStatusFilterOpen(!isStatusFilterOpen)} isExpanded={isStatusFilterOpen} variant="default">
+                                  <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                                    <FlexItem>Status</FlexItem>
+                                    {selectedCount > 0 && (
+                                      <FlexItem>
+                                        <Badge isRead>{selectedCount}</Badge>
+                                      </FlexItem>
+                                    )}
+                                  </Flex>
+                                </MenuToggle>
+                              );
+                            }}
                           >
                             <DropdownList>
-                              {availableStatuses.map(status => (
-                                <DropdownItem
-                                  key={status}
-                                  onClick={() => {
-                                    setStatusFilter(status);
-                                    setIsStatusFilterOpen(false);
-                                  }}
-                                >
-                                  <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                                    <FlexItem>
-                                      <Checkbox
-                                        id={`status-filter-${status}`}
-                                        isChecked={statusFilter === status}
-                                        onChange={() => {}}
-                                        onClick={(e) => e.stopPropagation()}
-                                      />
-                                    </FlexItem>
-                                    <FlexItem>
-                                      {status}
-                                    </FlexItem>
-                                  </Flex>
-                                </DropdownItem>
-                              ))}
+                              {availableStatuses.map(status => {
+                                const statusFilterArray = Array.isArray(statusFilter) ? statusFilter : (statusFilter !== 'All' ? [statusFilter] : []);
+                                const isSelected = status === 'All' ? statusFilter === 'All' : statusFilterArray.includes(status);
+                                return (
+                                  <DropdownItem
+                                    key={status}
+                                    onClick={() => {
+                                      if (status === 'All') {
+                                        setStatusFilter('All');
+                                      } else {
+                                        if (isSelected) {
+                                          // Remove from selection
+                                          const newFilter = statusFilterArray.filter(s => s !== status);
+                                          setStatusFilter(newFilter.length === 0 ? 'All' : newFilter);
+                                        } else {
+                                          // Add to selection
+                                          const newFilter = statusFilter === 'All' ? [status] : [...statusFilterArray, status];
+                                          setStatusFilter(newFilter);
+                                        }
+                                      }
+                                    }}
+                                  >
+                                    <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                                      <FlexItem>
+                                        <Checkbox
+                                          id={`status-filter-${status}`}
+                                          isChecked={isSelected}
+                                          onChange={() => {}}
+                                          onClick={(e) => e.stopPropagation()}
+                                        />
+                                      </FlexItem>
+                                      <FlexItem>
+                                        {status}
+                                      </FlexItem>
+                                    </Flex>
+                                  </DropdownItem>
+                                );
+                              })}
                             </DropdownList>
                           </Dropdown>
                         </ToolbarItem>
@@ -3088,51 +3207,56 @@ const VirtualMachines: React.FunctionComponent = () => {
               </Toolbar>
 
               {/* Filter chips row - only show when filters are active, but hide when project is selected from tree */}
-              {(!selectedProjectFromTree && (selectedClusterFromTree || clusterForSelectedProject || clusterFilter !== 'All' || (projectFilter !== 'All' && (Array.isArray(projectFilter) ? projectFilter.length > 0 : true)) || statusFilter !== 'All')) && (
-                <div style={{ padding: '12px 16px', backgroundColor: 'var(--pf-t--global--background--color--primary--default)' }}>
-                  <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsMd' }} wrap="wrap">
-                    {/* Cluster chip - only show when cluster is selected from dropdown, not from tree selection */}
-                    {(clusterFilter !== 'All' && !selectedClusterFromTree && !selectedProjectFromTree) && (
-                      <FlexItem>
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          border: '1px solid var(--pf-t--global--border--color--default)',
-                          borderRadius: '4px',
-                          padding: '4px 8px',
-                          backgroundColor: 'var(--pf-t--global--background--color--primary--default)'
-                        }}>
-                          <span style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)', fontWeight: 400 }}>Cluster</span>
-                          <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            backgroundColor: '#E7F1FA',
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            fontSize: '0.875rem'
-                          }}>
-                            <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
-                              {clusterForSelectedProject || clusterFilter}
-                            </span>
-                            <Button
-                              variant="plain"
-                              onClick={() => {
-                                if (clusterForSelectedProject) {
-                                  setSelectedTreeNode(null);
-                                } else {
-                                  setClusterFilter('All');
-                                }
-                              }}
-                              aria-label="Remove cluster filter"
-                              style={{ padding: '0', minWidth: 'auto', height: 'auto' }}
-                            >
-                              <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
-                            </Button>
-                          </div>
-                        </div>
-                      </FlexItem>
+              {(!selectedProjectFromTree && (selectedClusterFromTree || clusterForSelectedProject || (clusterFilter !== 'All' && (Array.isArray(clusterFilter) ? clusterFilter.length > 0 : true)) || (projectFilter !== 'All' && (Array.isArray(projectFilter) ? projectFilter.length > 0 : true)) || (statusFilter !== 'All' && (Array.isArray(statusFilter) ? statusFilter.length > 0 : true)))) && (
+                <div style={{ paddingTop: '12px', paddingBottom: '12px', paddingLeft: '0', paddingRight: '16px', backgroundColor: 'var(--pf-t--global--background--color--primary--default)' }}>
+                  <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsMd' }} wrap="wrap" style={{ width: '100%' }}>
+                    {/* Cluster chip(s) - only show when cluster is selected from dropdown, not from tree selection */}
+                    {(clusterFilter !== 'All' && !selectedClusterFromTree && !selectedProjectFromTree && (Array.isArray(clusterFilter) ? clusterFilter.length > 0 : true)) && (
+                      <>
+                        {(Array.isArray(clusterFilter) ? clusterFilter : [clusterFilter]).map((cluster, index) => (
+                          <FlexItem key={index}>
+                            <div style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              border: '1px solid var(--pf-t--global--border--color--default)',
+                              borderRadius: '4px',
+                              padding: '4px 8px',
+                              backgroundColor: 'var(--pf-t--global--background--color--primary--default)'
+                            }}>
+                              <span style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)', fontWeight: 400 }}>Cluster</span>
+                              <div style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                backgroundColor: '#E7F1FA',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '0.875rem'
+                              }}>
+                                <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
+                                  {cluster}
+                                </span>
+                                <Button
+                                  variant="plain"
+                                  onClick={() => {
+                                    if (Array.isArray(clusterFilter)) {
+                                      const newFilter = clusterFilter.filter(c => c !== cluster);
+                                      setClusterFilter(newFilter.length === 0 ? 'All' : newFilter);
+                                    } else if (clusterFilter === cluster) {
+                                      setClusterFilter('All');
+                                    }
+                                  }}
+                                  aria-label="Remove cluster filter"
+                                  style={{ padding: '0', minWidth: 'auto', height: 'auto' }}
+                                >
+                                  <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                                </Button>
+                              </div>
+                            </div>
+                          </FlexItem>
+                        ))}
+                      </>
                     )}
                     {/* Project chip(s) - only show when projects are selected from dropdown, not from tree selection */}
                     {(!selectedProjectFromTree && projectFilter !== 'All' && (Array.isArray(projectFilter) ? projectFilter.length > 0 : true)) && (
@@ -3182,8 +3306,8 @@ const VirtualMachines: React.FunctionComponent = () => {
                         ))}
                       </>
                     )}
-                    {/* Status chip */}
-                    {statusFilter !== 'All' && (
+                    {/* Status chip - single chip with all selected statuses, each with its own X, plus general X outside */}
+                    {statusFilter !== 'All' && (Array.isArray(statusFilter) ? statusFilter.length > 0 : true) && (
                       <FlexItem>
                         <div style={{
                           display: 'inline-flex',
@@ -3198,48 +3322,63 @@ const VirtualMachines: React.FunctionComponent = () => {
                           <div style={{
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '6px',
-                            backgroundColor: '#E7F1FA',
+                            gap: '4px',
+                            backgroundColor: 'white',
                             padding: '4px 8px',
                             borderRadius: '4px',
-                            fontSize: '0.875rem'
+                            fontSize: '0.875rem',
+                            flexWrap: 'wrap',
+                            maxWidth: '400px'
                           }}>
-                            <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
-                              {statusFilter}
-                            </span>
-                            <Button
-                              variant="plain"
-                              onClick={() => setStatusFilter('All')}
-                              aria-label="Remove status filter"
-                              style={{ padding: '0', minWidth: 'auto', height: 'auto' }}
-                            >
-                              <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
-                            </Button>
+                            {(Array.isArray(statusFilter) ? statusFilter : [statusFilter]).map((status, index) => (
+                              <div
+                                key={index}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  backgroundColor: '#D0E7F5',
+                                  padding: '2px 6px',
+                                  borderRadius: '3px'
+                                }}
+                              >
+                                <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
+                                  {status}
+                                </span>
+                                <Button
+                                  variant="plain"
+                                  onClick={() => {
+                                    if (Array.isArray(statusFilter)) {
+                                      const newFilter = statusFilter.filter(s => s !== status);
+                                      setStatusFilter(newFilter.length === 0 ? 'All' : newFilter);
+                                    } else if (statusFilter === status) {
+                                      setStatusFilter('All');
+                                    }
+                                  }}
+                                  aria-label={`Remove ${status} filter`}
+                                  style={{ padding: '0', minWidth: 'auto', height: 'auto' }}
+                                >
+                                  <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                                </Button>
+                              </div>
+                            ))}
                           </div>
+                          <Button
+                            variant="plain"
+                            onClick={() => setStatusFilter('All')}
+                            aria-label="Remove all status filters"
+                            style={{ padding: '0', minWidth: 'auto', height: 'auto', marginLeft: '4px' }}
+                          >
+                            <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                          </Button>
                         </div>
                       </FlexItem>
                     )}
-                    {/* Clear all filters link */}
-                    <FlexItem align={{ default: 'alignRight' }}>
-                      <Button
-                        variant="link"
-                        isInline
-                        onClick={() => {
-                          setSelectedTreeNode(null);
-                          setClusterFilter('All');
-                          setProjectFilter('All');
-                          setStatusFilter('All');
-                        }}
-                        style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--color--brand--default)', textDecoration: 'underline' }}
-                      >
-                        Clear
-                      </Button>
-                    </FlexItem>
                   </Flex>
                 </div>
               )}
 
-              <div style={{ marginTop: '16px', overflowX: 'hidden', width: '100%' }}>
+              <div style={{ marginTop: '0', overflowX: 'hidden', width: '100%' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--pf-t--global--border--color--default)' }}>
