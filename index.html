@@ -1,0 +1,17 @@
+<!doctype html><html lang="en-US"><head><meta charset="utf-8"><title>Patternfly Seed</title><meta id="appName" name="application-name" content="Patternfly Seed"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" type="image/svg+xml" href="/images/favicon.png"><base href="/"><script>// Handle GitHub Pages routing
+    (function(l) {
+      if (l.search) {
+        var q = {};
+        l.search.slice(1).split('&').forEach(function(v) {
+          var a = v.split('=');
+          q[a[0]] = a.slice(1).join('=').replace(/~and~/g, '&');
+        });
+        if (q.p !== undefined) {
+          window.history.replaceState(null, null,
+            l.pathname.slice(0, -1) + (q.p || '') +
+            (q.q ? ('?' + q.q) : '') +
+            l.hash
+          );
+        }
+      }
+    }(window.location))</script><script defer="defer" src="/main.bundle.js"></script><link href="/main.css" rel="stylesheet"></head><body><noscript>Enabling JavaScript is required to run this app.</noscript><div id="root"></div></body></html>
