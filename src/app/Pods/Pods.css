@@ -1,0 +1,84 @@
+/* Override PageSection padding to allow full-width layout */
+.pods-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+  width: 100%;
+  background-color: var(--pf-t--global--background--color--primary--default);
+  margin: 0;
+  padding: 0;
+}
+
+/* Remove padding from PageSection wrapper */
+.pods-page + *,
+.pf-v6-c-page__main-section {
+  padding: 0 !important;
+}
+
+.pods-header {
+  padding: 24px;
+  background-color: var(--pf-t--global--background--color--primary--default);
+  border-bottom: 1px solid var(--pf-t--global--border--color--default);
+  flex-shrink: 0;
+}
+
+.pods-page table thead th[style*="cursor: pointer"] {
+  transition: background-color 0.2s;
+}
+
+.pods-page table thead th[style*="cursor: pointer"]:hover {
+  background-color: var(--pf-t--global--background--color--secondary--default);
+}
+
+.search-dropdown-menu .pf-v6-c-menu {
+  box-shadow: var(--pf-t--global--box-shadow--lg);
+  border: 1px solid var(--pf-t--global--border--color--default);
+  border-radius: 4px;
+  background-color: var(--pf-t--global--background--color--primary--default);
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.search-dropdown-menu .pf-v6-c-menu__list-item button {
+  width: 100%;
+  text-align: left;
+}
+
+.search-dropdown-menu .pf-v6-c-menu__list-item:hover {
+  background-color: var(--pf-t--global--background--color--primary--hover);
+}
+
+.search-dropdown-menu .pf-v6-c-divider {
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 0 !important;
+  border: none !important;
+  border-top: 1px solid var(--pf-t--global--border--color--default) !important;
+  background-color: transparent !important;
+}
+
+.search-dropdown-menu .pf-v6-c-menu__list-item[disabled] {
+  background-color: transparent !important;
+  padding: 8px 16px;
+}
+
+.search-dropdown-menu .pf-v6-c-menu__list-item[disabled]:hover {
+  background-color: transparent !important;
+}
+
+.pods-search-with-chips {
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.pods-search-with-chips:focus-within {
+  border-color: var(--pf-t--global--color--brand--default);
+  box-shadow: 0 0 0 2px var(--pf-t--global--color--brand--default--alpha--20);
+}
+
+.pods-search-with-chips input::placeholder {
+  color: var(--pf-t--global--text--color--subtle);
+}
+
+

@@ -5,6 +5,8 @@ import { Support } from '@app/Support/Support';
 import { GeneralSettings } from '@app/Settings/General/GeneralSettings';
 import { ProfileSettings } from '@app/Settings/Profile/ProfileSettings';
 import { NotFound } from '@app/NotFound/NotFound';
+import { VirtualMachines } from '@app/VirtualMachines/VirtualMachines';
+import { Pods } from '@app/Pods/Pods';
 
 export interface IAppRoute {
   label?: string; // Excluding the label will exclude the route from the nav sidebar in AppLayout
@@ -16,7 +18,7 @@ export interface IAppRoute {
 }
 
 export interface IAppRouteGroup {
-  label: string;
+  label?: string; // Excluding the label will exclude the route group from the nav sidebar
   routes: IAppRoute[];
 }
 
@@ -26,19 +28,30 @@ const routes: AppRouteConfig[] = [
   {
     element: <Dashboard />,
     exact: true,
-    label: 'Dashboard',
     path: '/',
     title: 'PatternFly Seed | Main Dashboard',
   },
   {
+    element: <VirtualMachines />,
+    exact: true,
+    label: 'Virtual machines',
+    path: '/virtual-machines',
+    title: 'PatternFly Seed | Virtual Machines',
+  },
+  {
+    element: <Pods />,
+    exact: true,
+    label: 'Pods',
+    path: '/pods',
+    title: 'PatternFly Seed | Pods',
+  },
+  {
     element: <Support />,
     exact: true,
-    label: 'Support',
     path: '/support',
     title: 'PatternFly Seed | Support Page',
   },
   {
-    label: 'Settings',
     routes: [
       {
         element: <GeneralSettings />,
