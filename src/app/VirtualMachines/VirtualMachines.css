@@ -345,3 +345,11 @@ body.resizing-sidebar * {
   background-color: var(--pf-t--global--background--color--primary--hover) !important;
 }
 
+/* Make disabled dropdowns look consistent with disabled buttons - use PatternFly's default disabled styling */
+.vm-main-content .pf-v6-c-menu-toggle[disabled],
+.vm-main-content .pf-v6-c-menu-toggle[aria-disabled="true"] {
+  /* Let PatternFly handle disabled styling - remove custom overrides */
+  opacity: var(--pf-t--global--opacity--disabled, 0.6) !important;
+  cursor: not-allowed !important;
+}
+

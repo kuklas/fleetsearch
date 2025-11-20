@@ -63,6 +63,7 @@ import {
   MulticlusterIcon,
   AngleLeftIcon,
   AngleRightIcon,
+  AngleDownIcon,
   AngleDoubleDownIcon,
   AngleDoubleUpIcon,
   PlusCircleIcon,
@@ -403,6 +404,9 @@ const VirtualMachines: React.FunctionComponent = () => {
       node?: string;
       ipAddress?: string;
       storageClass?: string;
+      vCPU?: number;
+      memory?: number;
+      storage?: number;
     }> = [];
     
     // Only get labels when needed - optimize by building a map
@@ -424,6 +428,11 @@ const VirtualMachines: React.FunctionComponent = () => {
               const ipAddress = (vm.status === 'Running' || vm.status === 'Starting' || vm.status === 'Migrating') ? `10.131.1.${179 + vmCounter}` : undefined;
               const storageClass = vmCounter % 2 === 0 ? (vmCounter % 4 === 0 ? 'ocs-storagecluster-ceph-rbd-virtualization' : 'gp3-csi') : undefined;
               
+              // Generate mock resource usage
+              const vCPU = 1 + (vmCounter % 4); // 1-4 vCPUs
+              const memory = 2 + (vmCounter % 8) * 0.5; // 2-6 GiB in 0.5 increments
+              const storage = 10 + (vmCounter % 20) * 5; // 10-100 GiB in 5 increments
+              
               vms.push({
                 id: vm.id,
                 name: vm.name,
@@ -435,6 +444,9 @@ const VirtualMachines: React.FunctionComponent = () => {
                 node,
                 ipAddress,
                 storageClass,
+                vCPU,
+                memory,
+                storage,
               });
               vmCounter++;
             });
@@ -578,6 +590,10 @@ const VirtualMachines: React.FunctionComponent = () => {
 
   // Determine selected cluster and project from tree selection
   const selectedClusterFromTree = React.useMemo(() => {
+    // If "all-clusters" is selected, don't filter by cluster
+    if (selectedTreeNode === 'all-clusters') {
+      return null;
+    }
     if (selectedTreeNode?.startsWith('cluster-')) {
       const clusterId = selectedTreeNode.replace('cluster-', '');
       const cluster = getAllClusters().find(c => c.id === clusterId);
@@ -615,9 +631,14 @@ const VirtualMachines: React.FunctionComponent = () => {
   const filteredVMs = React.useMemo(() => {
     let vms = getAllVMs.filter(vm => {
       // Apply cluster filter (from tree or dropdown, or from selected project's cluster)
-      const effectiveClusterFilter = selectedClusterFromTree || clusterForSelectedProject || clusterFilter;
-      if (effectiveClusterFilter && effectiveClusterFilter !== 'All' && vm.cluster !== effectiveClusterFilter) {
-        return false;
+      // If "all-clusters" is selected, don't filter by cluster at all - show all VMs
+      if (selectedTreeNode === 'all-clusters') {
+        // Show all VMs from all clusters - no cluster filtering
+      } else {
+        const effectiveClusterFilter = selectedClusterFromTree || clusterForSelectedProject || clusterFilter;
+        if (effectiveClusterFilter && effectiveClusterFilter !== 'All' && vm.cluster !== effectiveClusterFilter) {
+          return false;
+        }
       }
       
       // Apply project filter (from tree or dropdown)
@@ -693,7 +714,7 @@ const VirtualMachines: React.FunctionComponent = () => {
     });
 
     return vms;
-  }, [getAllVMs, isAdvancedSearchActive, advancedSearchCluster, advancedSearchProject, advancedSearchStatus, advancedSearchOS, advancedSearchVCPUOperator, advancedSearchVCPUValue, advancedSearchMemoryOperator, advancedSearchMemoryValue, advancedSearchName, advancedSearchIPAddress, statusFilter, osFilter, clusterFilter, projectFilter, selectedClusterFromTree, clusterForSelectedProject, selectedProjectFromTree, searchValue, sortBy, sortDirection]);
+  }, [getAllVMs, isAdvancedSearchActive, advancedSearchCluster, advancedSearchProject, advancedSearchStatus, advancedSearchOS, advancedSearchVCPUOperator, advancedSearchVCPUValue, advancedSearchMemoryOperator, advancedSearchMemoryValue, advancedSearchName, advancedSearchIPAddress, statusFilter, osFilter, clusterFilter, projectFilter, selectedClusterFromTree, clusterForSelectedProject, selectedProjectFromTree, selectedTreeNode, searchValue, sortBy, sortDirection]);
 
   // Pagination
   const paginatedVMs = React.useMemo(() => {
@@ -701,7 +722,7 @@ const VirtualMachines: React.FunctionComponent = () => {
     return filteredVMs.slice(start, start + perPage);
   }, [filteredVMs, page, perPage]);
 
-  // Status counts
+  // Status counts - based on filtered VMs
   const vmStatusCounts = React.useMemo(() => {
     const counts = { 
       Migrating: 0, 
@@ -716,13 +737,13 @@ const VirtualMachines: React.FunctionComponent = () => {
       WaitingForVolumeBinding: 0, 
       Error: 0 
     };
-    getAllVMs.forEach(vm => {
+    filteredVMs.forEach(vm => {
       if (vm.status in counts) {
         counts[vm.status as keyof typeof counts]++;
       }
     });
     return counts;
-  }, [getAllVMs]);
+  }, [filteredVMs]);
 
   const availableStatuses = ['All', 'Migrating', 'Paused', 'Provisioning', 'Running', 'Starting', 'Stopped', 'Stopping', 'Terminating', 'Unknown', 'WaitingForVolumeBinding', 'Error'];
   const availableOSs = ['All', 'RHEL', 'CentOS', 'Ubuntu'];
@@ -890,10 +911,21 @@ const VirtualMachines: React.FunctionComponent = () => {
               fontWeight: 600,
             }}
           >
-            <Tooltip content="All clusters">
-              <ServerIcon />
-            </Tooltip>
-            <span>All clusters</span>
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedTreeNode('all-clusters');
+                setPage(1);
+                setSelectedVMDetails(null);
+                // Ensure all-clusters is expanded when selected
+                if (!expandedNodes.includes('all-clusters')) {
+                  setExpandedNodes([...expandedNodes, 'all-clusters']);
+                }
+              }}
+              style={{ cursor: 'pointer', flex: 1 }}
+            >
+              All clusters
+            </span>
           </div>
         ),
         id: 'all-clusters',
@@ -937,10 +969,40 @@ const VirtualMachines: React.FunctionComponent = () => {
         <TreeView
           key={treeKey}
           data={treeData}
+          onToggle={(_event, item) => {
+            // Handle toggle for "all-clusters" - this is triggered by the TreeView's default arrow
+            // But we handle it manually with the button, so we can ignore it here
+            // or sync it with our manual handling
+            if (item.id === 'all-clusters') {
+              // The button handles expand/collapse, so we just sync the state
+              const isCurrentlyExpanded = expandedNodes.includes('all-clusters');
+              const allClusterIds = getAllClusters().map(c => `cluster-${c.id}`);
+              
+              if (isCurrentlyExpanded) {
+                // Collapse: remove all-clusters and all cluster nodes
+                setExpandedNodes(expandedNodes.filter(id => id !== 'all-clusters' && !allClusterIds.includes(id)));
+              } else {
+                // Expand: add all-clusters and all cluster nodes
+                setExpandedNodes([...new Set([...expandedNodes, 'all-clusters', ...allClusterIds])]);
+              }
+              setTreeKey(prev => prev + 1); // Force re-render
+            }
+          }}
           onSelect={(_event, item) => {
             if (item.id) {
-              // Don't allow selection of namespace or all-clusters nodes
-              if (item.id.startsWith('namespace-') || item.id === 'all-clusters') {
+              // Allow selection of all-clusters node
+              if (item.id === 'all-clusters') {
+                setSelectedTreeNode('all-clusters');
+                setPage(1);
+                setSelectedVMDetails(null);
+                // Ensure all-clusters is expanded when selected, but don't force expand all clusters
+                if (!expandedNodes.includes('all-clusters')) {
+                  setExpandedNodes([...expandedNodes, 'all-clusters']);
+                }
+                return;
+              }
+              // Don't allow selection of namespace nodes
+              if (item.id.startsWith('namespace-')) {
                 return;
               }
               setSelectedTreeNode(item.id);
@@ -2447,129 +2509,178 @@ const VirtualMachines: React.FunctionComponent = () => {
             })()
           ) : (
             <>
-          {!isAdvancedSearchActive && isSummaryExpanded && (
-            <Card style={{ marginBottom: '16px', flexShrink: 0 }}>
-              <CardBody style={{ minHeight: '120px' }}>
-                <Flex>
-                  <FlexItem flex={{ default: 'flex_1' }} style={{ paddingRight: '24px' }}>
-                    <Flex direction={{ default: 'column' }}>
-                      <FlexItem>
-                        <Title headingLevel="h3" size="md" style={{ marginBottom: '16px' }}>
-                          Virtual Machines ({getAllVMs.length})
-                        </Title>
-                      </FlexItem>
-                      <FlexItem>
-                        <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }}>
-                          <FlexItem>
-                            <Button variant="plain" onClick={() => setStatusFilter('Error')} style={{ padding: '8px', cursor: 'pointer' }}>
-                              <Flex direction={{ default: 'column' }} alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                                <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                                  <FlexItem>
-                                    <ExclamationCircleIcon style={{ color: 'var(--pf-t--global--icon--color--status--danger--default)', fontSize: '16px' }} />
-                                  </FlexItem>
-                                  <FlexItem style={{ fontSize: '24px', color: 'var(--pf-t--global--color--brand--default)' }}>
-                                    {vmStatusCounts.Error}
-                                  </FlexItem>
-                                </Flex>
-                                <FlexItem style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>Error</FlexItem>
-                              </Flex>
-                            </Button>
-                          </FlexItem>
-                          <FlexItem>
-                            <Button variant="plain" onClick={() => setStatusFilter('Running')} style={{ padding: '8px', cursor: 'pointer' }}>
-                              <Flex direction={{ default: 'column' }} alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                                <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                                  <FlexItem>
-                                    <SyncAltIcon style={{ color: 'var(--pf-t--global--icon--color--status--success--default)', fontSize: '16px' }} />
-                                  </FlexItem>
-                                  <FlexItem style={{ fontSize: '24px', color: 'var(--pf-t--global--color--brand--default)' }}>
-                                    {vmStatusCounts.Running}
-                                  </FlexItem>
-                                </Flex>
-                                <FlexItem style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>Running</FlexItem>
-                              </Flex>
-                            </Button>
-                          </FlexItem>
-                          <FlexItem>
-                            <Button variant="plain" onClick={() => setStatusFilter('Stopped')} style={{ padding: '8px', cursor: 'pointer' }}>
-                              <Flex direction={{ default: 'column' }} alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                                <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                                  <FlexItem>
-                                    <OffIcon style={{ color: 'var(--pf-t--global--icon--color--regular)', fontSize: '16px' }} />
-                                  </FlexItem>
-                                  <FlexItem style={{ fontSize: '24px', color: 'var(--pf-t--global--color--brand--default)' }}>
-                                    {vmStatusCounts.Stopped}
-                                  </FlexItem>
-                                </Flex>
-                                <FlexItem style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>Stopped</FlexItem>
-                              </Flex>
-                            </Button>
-                          </FlexItem>
-                          <FlexItem>
-                            <Button variant="plain" onClick={() => setStatusFilter('Paused')} style={{ padding: '8px', cursor: 'pointer' }}>
-                              <Flex direction={{ default: 'column' }} alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                                <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                                  <FlexItem>
-                                    <PauseCircleIcon style={{ color: 'var(--pf-t--global--icon--color--regular)', fontSize: '16px' }} />
-                                  </FlexItem>
-                                  <FlexItem style={{ fontSize: '24px', color: 'var(--pf-t--global--color--brand--default)' }}>
-                                    {vmStatusCounts.Paused}
-                                  </FlexItem>
-                                </Flex>
-                                <FlexItem style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>Paused</FlexItem>
-                              </Flex>
-                            </Button>
-                          </FlexItem>
-                        </Flex>
-                      </FlexItem>
-                    </Flex>
-                  </FlexItem>
+          {!isAdvancedSearchActive && (
+            <ExpandableSection
+              toggleText="Summary"
+              isExpanded={isSummaryExpanded}
+              onToggle={(_event, isExpanded) => setIsSummaryExpanded(isExpanded)}
+              style={{ marginBottom: '16px', flexShrink: 0 }}
+            >
+              <Grid hasGutter>
+                {/* Cluster Card */}
+                <GridItem span={4}>
+                  <Card style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <CardBody style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                      <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                        <FlexItem>
+                          <Title headingLevel="h4" size="md">Cluster</Title>
+                        </FlexItem>
+                        <FlexItem>
+                          <div style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>
+                            {selectedClusterFromTree || clusterForSelectedProject || clusterFilter !== 'All' 
+                              ? (selectedClusterFromTree || clusterForSelectedProject || clusterFilter)
+                              : 'All clusters'}
+                          </div>
+                        </FlexItem>
+                        <FlexItem>
+                          <div style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>
+                            Project {selectedProjectFromTree || (Array.isArray(projectFilter) && projectFilter.length > 0 && projectFilter[0] !== 'All' ? projectFilter[0] : projectFilter !== 'All' ? projectFilter : 'default')}
+                          </div>
+                        </FlexItem>
+                      </Flex>
+                    </CardBody>
+                  </Card>
+                </GridItem>
 
-                  <Divider orientation={{ default: 'vertical' }} style={{ margin: '0 24px' }} />
+                {/* VirtualMachines Card */}
+                <GridItem span={4}>
+                  <Card style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <CardBody style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                      <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                        <FlexItem>
+                          <Title headingLevel="h4" size="md">VirtualMachines ({filteredVMs.length})</Title>
+                        </FlexItem>
+                        <FlexItem>
+                          <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsXs' }}>
+                            <FlexItem>
+                              <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                                <FlexItem>
+                                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--pf-t--global--icon--color--status--danger--default)' }} />
+                                </FlexItem>
+                                <FlexItem>
+                                  <span style={{ fontSize: '14px' }}>{vmStatusCounts.Error} Error</span>
+                                </FlexItem>
+                              </Flex>
+                            </FlexItem>
+                            <FlexItem>
+                              <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                                <FlexItem>
+                                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--pf-t--global--icon--color--status--success--default)' }} />
+                                </FlexItem>
+                                <FlexItem>
+                                  <span style={{ fontSize: '14px' }}>{vmStatusCounts.Running} Running</span>
+                                </FlexItem>
+                              </Flex>
+                            </FlexItem>
+                            <FlexItem>
+                              <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                                <FlexItem>
+                                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--pf-t--global--icon--color--regular)' }} />
+                                </FlexItem>
+                                <FlexItem>
+                                  <span style={{ fontSize: '14px' }}>{vmStatusCounts.Stopped} Stopped</span>
+                                </FlexItem>
+                              </Flex>
+                            </FlexItem>
+                            <FlexItem>
+                              <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                                <FlexItem>
+                                  <div style={{ 
+                                    width: '8px', 
+                                    height: '8px', 
+                                    transform: 'rotate(45deg)', 
+                                    backgroundColor: 'var(--pf-t--global--icon--color--regular)',
+                                    border: 'none'
+                                  }} />
+                                </FlexItem>
+                                <FlexItem>
+                                  <span style={{ fontSize: '14px' }}>
+                                    {filteredVMs.length - vmStatusCounts.Error - vmStatusCounts.Running - vmStatusCounts.Stopped} Other
+                                  </span>
+                                </FlexItem>
+                              </Flex>
+                            </FlexItem>
+                          </Flex>
+                        </FlexItem>
+                      </Flex>
+                    </CardBody>
+                  </Card>
+                </GridItem>
 
-                  <FlexItem flex={{ default: 'flex_1' }}>
-                    <Flex direction={{ default: 'column' }}>
-                      <FlexItem>
-                        <Title headingLevel="h3" size="md" style={{ marginBottom: '16px' }}>
-                          Usage
-                        </Title>
-                      </FlexItem>
-                      <FlexItem>
-                        <Grid>
-                          <GridItem span={4}>
-                            <Flex direction={{ default: 'column' }}>
-                              <FlexItem style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>CPU</FlexItem>
-                              <FlexItem style={{ fontSize: '16px' }}>-</FlexItem>
-                              <FlexItem style={{ fontSize: '12px', color: 'var(--pf-t--global--text--color--subtle)', marginTop: '4px' }}>
-                                Requested of -
-                              </FlexItem>
-                            </Flex>
-                          </GridItem>
-                          <GridItem span={4}>
-                            <Flex direction={{ default: 'column' }}>
-                              <FlexItem style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>Memory</FlexItem>
-                              <FlexItem style={{ fontSize: '16px' }}>0 B</FlexItem>
-                              <FlexItem style={{ fontSize: '12px', color: 'var(--pf-t--global--text--color--subtle)', marginTop: '4px' }}>
-                                Used of 0 B
-                              </FlexItem>
-                            </Flex>
-                          </GridItem>
-                          <GridItem span={4}>
-                            <Flex direction={{ default: 'column' }}>
-                              <FlexItem style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>Storage</FlexItem>
-                              <FlexItem style={{ fontSize: '16px' }}>0 B</FlexItem>
-                              <FlexItem style={{ fontSize: '12px', color: 'var(--pf-t--global--text--color--subtle)', marginTop: '4px' }}>
-                                Used of 0 B
-                              </FlexItem>
-                            </Flex>
-                          </GridItem>
-                        </Grid>
-                      </FlexItem>
-                    </Flex>
-                  </FlexItem>
-                </Flex>
-              </CardBody>
-            </Card>
+                {/* Usage Card */}
+                <GridItem span={4}>
+                  <Card style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <CardBody style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                      <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                        <FlexItem>
+                          <Title headingLevel="h4" size="md">Usage</Title>
+                        </FlexItem>
+                        <FlexItem>
+                          <Grid hasGutter>
+                            <GridItem span={4}>
+                              <Flex direction={{ default: 'column' }}>
+                                <FlexItem style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '4px' }}>CPU</FlexItem>
+                                <FlexItem style={{ fontSize: '16px' }}>
+                                  {(() => {
+                                    const totalCPU = filteredVMs.reduce((sum, vm) => sum + (vm.vCPU || 0), 0);
+                                    return totalCPU > 0 ? `${(totalCPU * 1000).toFixed(2)} m` : '-';
+                                  })()}
+                                </FlexItem>
+                                <FlexItem style={{ fontSize: '12px', color: 'var(--pf-t--global--text--color--subtle)', marginTop: '4px' }}>
+                                  Requested of {filteredVMs.length}
+                                </FlexItem>
+                              </Flex>
+                            </GridItem>
+                            <GridItem span={4}>
+                              <Flex direction={{ default: 'column' }}>
+                                <FlexItem style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '4px' }}>Memory</FlexItem>
+                                <FlexItem style={{ fontSize: '16px' }}>
+                                  {(() => {
+                                    const totalMemory = filteredVMs.reduce((sum, vm) => sum + (vm.memory || 0), 0);
+                                    if (totalMemory === 0) return '0 B';
+                                    if (totalMemory < 1024) return `${totalMemory.toFixed(2)} MiB`;
+                                    return `${(totalMemory / 1024).toFixed(2)} GiB`;
+                                  })()}
+                                </FlexItem>
+                                <FlexItem style={{ fontSize: '12px', color: 'var(--pf-t--global--text--color--subtle)', marginTop: '4px' }}>
+                                  Used of {(() => {
+                                    const totalAllocated = filteredVMs.length * 10; // Assume 10 GiB per VM
+                                    if (totalAllocated === 0) return '0 B';
+                                    if (totalAllocated < 1024) return `${totalAllocated.toFixed(2)} MiB`;
+                                    return `${(totalAllocated / 1024).toFixed(1)} GiB`;
+                                  })()}
+                                </FlexItem>
+                              </Flex>
+                            </GridItem>
+                            <GridItem span={4}>
+                              <Flex direction={{ default: 'column' }}>
+                                <FlexItem style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '4px' }}>Storage</FlexItem>
+                                <FlexItem style={{ fontSize: '16px' }}>
+                                  {(() => {
+                                    const totalStorage = filteredVMs.reduce((sum, vm) => sum + (vm.storage || 0), 0);
+                                    if (totalStorage === 0) return '0 B';
+                                    if (totalStorage < 1024) return `${totalStorage.toFixed(2)} MiB`;
+                                    return `${(totalStorage / 1024).toFixed(1)} GiB`;
+                                  })()}
+                                </FlexItem>
+                                <FlexItem style={{ fontSize: '12px', color: 'var(--pf-t--global--text--color--subtle)', marginTop: '4px' }}>
+                                  Used of {(() => {
+                                    const totalAllocated = filteredVMs.length * 100; // Assume 100 GiB per VM
+                                    if (totalAllocated === 0) return '0 B';
+                                    if (totalAllocated < 1024) return `${totalAllocated.toFixed(2)} MiB`;
+                                    return `${(totalAllocated / 1024).toFixed(1)} GiB`;
+                                  })()}
+                                </FlexItem>
+                              </Flex>
+                            </GridItem>
+                          </Grid>
+                        </FlexItem>
+                      </Flex>
+                    </CardBody>
+                  </Card>
+                </GridItem>
+              </Grid>
+            </ExpandableSection>
           )}
 
           {filteredVMs.length === 0 ? (
@@ -2655,27 +2766,33 @@ const VirtualMachines: React.FunctionComponent = () => {
                     <>
                       {/* Cluster dropdown */}
                       <ToolbarItem>
-                        <Dropdown
-                          isOpen={isClusterFilterOpen}
-                          onSelect={() => setIsClusterFilterOpen(false)}
-                          onOpenChange={(isOpen: boolean) => setIsClusterFilterOpen(isOpen)}
-                          toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-                            <MenuToggle
-                              ref={toggleRef}
-                              onClick={() => setIsClusterFilterOpen(!isClusterFilterOpen)}
-                              isExpanded={isClusterFilterOpen}
-                              variant="default"
-                              isDisabled={!!selectedClusterFromTree || !!selectedProjectFromTree}
-                              style={{
-                                backgroundColor: (selectedClusterFromTree || selectedProjectFromTree || clusterFilter !== 'All') ? 'var(--pf-t--global--background--color--primary--hover)' : undefined,
-                                opacity: (selectedClusterFromTree || selectedProjectFromTree) ? 0.6 : 1,
-                                cursor: (selectedClusterFromTree || selectedProjectFromTree) ? 'not-allowed' : 'pointer'
-                              }}
-                            >
-                              Cluster{(selectedClusterFromTree || selectedProjectFromTree || clusterFilter !== 'All') ? ' 1' : ''}
-                            </MenuToggle>
-                          )}
-                        >
+                          <Dropdown
+                            isOpen={isClusterFilterOpen}
+                            onSelect={() => setIsClusterFilterOpen(false)}
+                            onOpenChange={(isOpen: boolean) => setIsClusterFilterOpen(isOpen)}
+                            toggle={(toggleRef: React.Ref<MenuToggleElement>) => {
+                              const isDisabled = (!!selectedClusterFromTree || !!selectedProjectFromTree) && selectedTreeNode !== 'all-clusters';
+                              const toggle = (
+                                <MenuToggle
+                                  ref={toggleRef}
+                                  onClick={() => setIsClusterFilterOpen(!isClusterFilterOpen)}
+                                  isExpanded={isClusterFilterOpen}
+                                  variant="default"
+                                  isDisabled={isDisabled}
+                                  style={{
+                                    backgroundColor: (selectedClusterFromTree || selectedProjectFromTree || clusterFilter !== 'All') ? 'var(--pf-t--global--background--color--primary--hover)' : undefined
+                                  }}
+                                >
+                                  Cluster{(selectedClusterFromTree || selectedProjectFromTree || clusterFilter !== 'All') ? ' 1' : ''}
+                                </MenuToggle>
+                              );
+                              return isDisabled ? (
+                                <Tooltip content="To update filters, choose another cluster in the tree view.">
+                                  <span style={{ display: 'inline-block' }}>{toggle}</span>
+                                </Tooltip>
+                              ) : toggle;
+                            }}
+                          >
                         <DropdownList>
                           <DropdownItem
                             key="all"
@@ -2728,49 +2845,53 @@ const VirtualMachines: React.FunctionComponent = () => {
                         </ToolbarItem>
                         {/* Project dropdown */}
                         <ToolbarItem>
-                          <Dropdown
-                            isOpen={isProjectFilterOpen}
-                            onSelect={() => {
-                              // Only close if not in multi-select mode (when cluster is selected from tree)
-                              if (!selectedClusterFromTree) {
-                                setIsProjectFilterOpen(false);
-                              }
-                            }}
-                            onOpenChange={(isOpen: boolean) => setIsProjectFilterOpen(isOpen)}
-                            toggle={(toggleRef: React.Ref<MenuToggleElement>) => {
-                              const projectFilterArray = Array.isArray(projectFilter) ? projectFilter : (projectFilter !== 'All' ? [projectFilter] : []);
-                              const selectedCount = selectedProjectFromTree ? 1 : projectFilterArray.length;
-                              // Logic:
-                              // - If cluster is selected from tree: Project dropdown should be ENABLED
-                              // - If project is selected from tree: Project dropdown should be DISABLED (same as cluster dropdown)
-                              // - If nothing selected from tree: Both dropdowns enabled
-                              const shouldDisableProject = !!selectedProjectFromTree;
-                              const shouldEnableProject = selectedClusterFromTree && !selectedProjectFromTree;
-                              const isProjectEnabled = shouldEnableProject || (!shouldDisableProject && !selectedClusterFromTree);
-                              return (
-                                <MenuToggle 
-                                  ref={toggleRef} 
-                                  onClick={() => {
-                                    if (isProjectEnabled) {
-                                      setIsProjectFilterOpen(!isProjectFilterOpen);
-                                    }
-                                  }} 
-                                  isExpanded={isProjectFilterOpen} 
-                                  variant="default"
-                                  isDisabled={!isProjectEnabled}
-                                  className={selectedClusterFromTree && !selectedProjectFromTree ? 'project-dropdown-enabled' : ''}
-                                  style={{
-                                    backgroundColor: (selectedProjectFromTree || projectFilter !== 'All') ? 'var(--pf-t--global--background--color--primary--hover)' : undefined,
-                                    opacity: isProjectEnabled ? 1 : 0.6,
-                                    cursor: isProjectEnabled ? 'pointer' : 'not-allowed',
-                                    pointerEvents: isProjectEnabled ? 'auto' : 'none'
-                                  }}
-                                >
-                                  Project{selectedCount > 0 ? ` ${selectedCount}` : ''}
-                                </MenuToggle>
-                              );
-                            }}
-                          >
+                            <Dropdown
+                              isOpen={isProjectFilterOpen}
+                              onSelect={() => {
+                                // Only close if not in multi-select mode (when cluster is selected from tree)
+                                if (!selectedClusterFromTree) {
+                                  setIsProjectFilterOpen(false);
+                                }
+                              }}
+                              onOpenChange={(isOpen: boolean) => setIsProjectFilterOpen(isOpen)}
+                              toggle={(toggleRef: React.Ref<MenuToggleElement>) => {
+                                const projectFilterArray = Array.isArray(projectFilter) ? projectFilter : (projectFilter !== 'All' ? [projectFilter] : []);
+                                const selectedCount = selectedProjectFromTree ? 1 : projectFilterArray.length;
+                                // Logic:
+                                // - If cluster is selected from tree: Project dropdown should be ENABLED
+                                // - If "all-clusters" is selected: Project dropdown should be ENABLED (multi-select mode)
+                                // - If cluster is selected from tree: Project dropdown should be ENABLED (multi-select mode)
+                                // - If project is selected from tree: Project dropdown should be DISABLED (same as cluster dropdown)
+                                // - If nothing selected from tree: Both dropdowns enabled
+                                const shouldDisableProject = !!selectedProjectFromTree;
+                                const shouldEnableProject = (selectedClusterFromTree || selectedTreeNode === 'all-clusters') && !selectedProjectFromTree;
+                                const isProjectEnabled = shouldEnableProject || (!shouldDisableProject && !selectedClusterFromTree && selectedTreeNode !== 'all-clusters');
+                                const toggle = (
+                                  <MenuToggle 
+                                    ref={toggleRef} 
+                                    onClick={() => {
+                                      if (isProjectEnabled) {
+                                        setIsProjectFilterOpen(!isProjectFilterOpen);
+                                      }
+                                    }} 
+                                    isExpanded={isProjectFilterOpen} 
+                                    variant="default"
+                                    isDisabled={!isProjectEnabled}
+                                    className={(selectedClusterFromTree || selectedTreeNode === 'all-clusters') && !selectedProjectFromTree ? 'project-dropdown-enabled' : ''}
+                                    style={{
+                                      backgroundColor: (selectedProjectFromTree || projectFilter !== 'All') ? 'var(--pf-t--global--background--color--primary--hover)' : undefined
+                                    }}
+                                  >
+                                    Project{selectedCount > 0 ? ` ${selectedCount}` : ''}
+                                  </MenuToggle>
+                                );
+                                return !isProjectEnabled ? (
+                                  <Tooltip content="To update filters, choose another cluster in the tree view.">
+                                    <span style={{ display: 'inline-block' }}>{toggle}</span>
+                                  </Tooltip>
+                                ) : toggle;
+                              }}
+                            >
                             <DropdownList>
                               <DropdownItem
                                 key="all"
@@ -2797,7 +2918,18 @@ const VirtualMachines: React.FunctionComponent = () => {
                                 </Flex>
                               </DropdownItem>
                               {getAllNamespaces()
-                                .filter(ns => !selectedClusterFromTree || ns.clusterId === getAllClusters().find(c => c.name === selectedClusterFromTree)?.id)
+                                .filter(ns => {
+                                  // If "all-clusters" is selected, show all projects
+                                  if (selectedTreeNode === 'all-clusters') {
+                                    return true;
+                                  }
+                                  // If a cluster is selected from tree, only show projects in that cluster
+                                  if (selectedClusterFromTree) {
+                                    return ns.clusterId === getAllClusters().find(c => c.name === selectedClusterFromTree)?.id;
+                                  }
+                                  // Otherwise show all projects
+                                  return true;
+                                })
                                 .map(namespace => {
                                   const projectFilterArray = Array.isArray(projectFilter) ? projectFilter : (projectFilter !== 'All' ? [projectFilter] : []);
                                   const isSelected = projectFilterArray.includes(namespace.name);
@@ -2806,8 +2938,8 @@ const VirtualMachines: React.FunctionComponent = () => {
                                       key={namespace.id}
                                       onClick={(e) => {
                                         e?.stopPropagation();
-                                        if (selectedClusterFromTree) {
-                                          // Multi-select mode when cluster is selected from tree
+                                        // Multi-select mode when cluster is selected from tree or "all-clusters" is selected
+                                        if (selectedClusterFromTree || selectedTreeNode === 'all-clusters') {
                                           if (isSelected) {
                                             // Remove from selection
                                             const newFilter = projectFilterArray.filter(p => p !== namespace.name);
@@ -2841,7 +2973,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                                   );
                                 })}
                             </DropdownList>
-                          </Dropdown>
+                            </Dropdown>
                         </ToolbarItem>
                         {/* Status filter */}
                         <ToolbarItem>
@@ -2955,12 +3087,12 @@ const VirtualMachines: React.FunctionComponent = () => {
                 </ToolbarContent>
               </Toolbar>
 
-              {/* Filter chips row - only show when filters are active */}
-              {(selectedClusterFromTree || clusterForSelectedProject || selectedProjectFromTree || clusterFilter !== 'All' || (projectFilter !== 'All' && (Array.isArray(projectFilter) ? projectFilter.length > 0 : true)) || statusFilter !== 'All') && (
+              {/* Filter chips row - only show when filters are active, but hide when project is selected from tree */}
+              {(!selectedProjectFromTree && (selectedClusterFromTree || clusterForSelectedProject || clusterFilter !== 'All' || (projectFilter !== 'All' && (Array.isArray(projectFilter) ? projectFilter.length > 0 : true)) || statusFilter !== 'All')) && (
                 <div style={{ padding: '12px 16px', backgroundColor: 'var(--pf-t--global--background--color--primary--default)' }}>
                   <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsMd' }} wrap="wrap">
-                    {/* Cluster chip */}
-                    {(selectedClusterFromTree || clusterForSelectedProject || clusterFilter !== 'All') && (
+                    {/* Cluster chip - only show when cluster is selected from dropdown, not from tree selection */}
+                    {(clusterFilter !== 'All' && !selectedClusterFromTree && !selectedProjectFromTree) && (
                       <FlexItem>
                         <div style={{
                           display: 'inline-flex',
@@ -2982,14 +3114,12 @@ const VirtualMachines: React.FunctionComponent = () => {
                             fontSize: '0.875rem'
                           }}>
                             <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
-                              {selectedClusterFromTree || clusterForSelectedProject || clusterFilter}
+                              {clusterForSelectedProject || clusterFilter}
                             </span>
                             <Button
                               variant="plain"
                               onClick={() => {
-                                if (selectedClusterFromTree) {
-                                  setSelectedTreeNode(null);
-                                } else if (clusterForSelectedProject) {
+                                if (clusterForSelectedProject) {
                                   setSelectedTreeNode(null);
                                 } else {
                                   setClusterFilter('All');
@@ -3004,11 +3134,11 @@ const VirtualMachines: React.FunctionComponent = () => {
                         </div>
                       </FlexItem>
                     )}
-                    {/* Project chip(s) */}
-                    {(selectedProjectFromTree || (projectFilter !== 'All' && (Array.isArray(projectFilter) ? projectFilter.length > 0 : true))) && (
+                    {/* Project chip(s) - only show when projects are selected from dropdown, not from tree selection */}
+                    {(!selectedProjectFromTree && projectFilter !== 'All' && (Array.isArray(projectFilter) ? projectFilter.length > 0 : true)) && (
                       <>
-                        {selectedProjectFromTree ? (
-                          <FlexItem>
+                        {(Array.isArray(projectFilter) ? projectFilter : [projectFilter]).map((project, index) => (
+                          <FlexItem key={index}>
                             <div style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -3029,29 +3159,16 @@ const VirtualMachines: React.FunctionComponent = () => {
                                 fontSize: '0.875rem'
                               }}>
                                 <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
-                                  {selectedProjectFromTree}
+                                  {project}
                                 </span>
                                 <Button
                                   variant="plain"
                                   onClick={() => {
-                                    // When removing project chip, if there's a parent cluster, set selection back to cluster
-                                    // This enables the project dropdown for multi-select (scenario 1 behavior)
-                                    if (selectedProjectFromTree) {
-                                      const namespace = getAllNamespaces().find(n => n.name === selectedProjectFromTree);
-                                      if (namespace) {
-                                        const cluster = getAllClusters().find(c => c.id === namespace.clusterId);
-                                        if (cluster) {
-                                          // Set selection back to cluster to enable project dropdown
-                                          setSelectedTreeNode(`cluster-${cluster.id}`);
-                                          setProjectFilter('All'); // Reset project filter
-                                        } else {
-                                          setSelectedTreeNode(null);
-                                        }
-                                      } else {
-                                        setSelectedTreeNode(null);
-                                      }
-                                    } else {
-                                      setSelectedTreeNode(null);
+                                    if (Array.isArray(projectFilter)) {
+                                      const newFilter = projectFilter.filter(p => p !== project);
+                                      setProjectFilter(newFilter.length === 0 ? 'All' : newFilter);
+                                    } else if (projectFilter === project) {
+                                      setProjectFilter('All');
                                     }
                                   }}
                                   aria-label="Remove project filter"
@@ -3062,51 +3179,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                               </div>
                             </div>
                           </FlexItem>
-                        ) : (
-                          (Array.isArray(projectFilter) ? projectFilter : [projectFilter]).map((project, index) => (
-                            <FlexItem key={index}>
-                              <div style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                border: '1px solid var(--pf-t--global--border--color--default)',
-                                borderRadius: '4px',
-                                padding: '4px 8px',
-                                backgroundColor: 'var(--pf-t--global--background--color--primary--default)'
-                              }}>
-                                <span style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)', fontWeight: 400 }}>Project</span>
-                                <div style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  backgroundColor: '#E7F1FA',
-                                  padding: '4px 8px',
-                                  borderRadius: '4px',
-                                  fontSize: '0.875rem'
-                                }}>
-                                  <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
-                                    {project}
-                                  </span>
-                                  <Button
-                                    variant="plain"
-                                    onClick={() => {
-                                      if (Array.isArray(projectFilter)) {
-                                        const newFilter = projectFilter.filter(p => p !== project);
-                                        setProjectFilter(newFilter.length === 0 ? 'All' : newFilter);
-                                      } else if (projectFilter === project) {
-                                        setProjectFilter('All');
-                                      }
-                                    }}
-                                    aria-label="Remove project filter"
-                                    style={{ padding: '0', minWidth: 'auto', height: 'auto' }}
-                                  >
-                                    <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
-                                  </Button>
-                                </div>
-                              </div>
-                            </FlexItem>
-                          ))
-                        )}
+                        ))}
                       </>
                     )}
                     {/* Status chip */}
@@ -3241,7 +3314,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                         }}
                         onClick={() => handleSort('namespace')}
                       >
-                        <Tooltip content="Namespace">
+                        <Tooltip content="Project">
                           <div style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -3250,7 +3323,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
                           }}>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Namespace</span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Project</span>
                             <span style={{ flexShrink: 0 }}><SortIcon column="namespace" /></span>
                           </div>
                         </Tooltip>
