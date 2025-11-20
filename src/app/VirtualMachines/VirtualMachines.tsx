@@ -56,7 +56,6 @@ import {
   Nav,
   NavList,
   NavItem,
-  Badge,
 } from '@patternfly/react-core';
 import {
   ServerIcon,
