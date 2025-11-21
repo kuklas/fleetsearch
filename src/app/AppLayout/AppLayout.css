@@ -1,0 +1,14 @@
+/* Make Virtual machines and Pods nav items narrower */
+.narrow-nav-item .pf-v6-c-nav__link {
+  max-width: fit-content !important;
+  width: auto !important;
+}
+
+.narrow-nav-item .pf-v6-c-nav__link-text {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 100px !important;
+  display: inline-block !important;
+}
+

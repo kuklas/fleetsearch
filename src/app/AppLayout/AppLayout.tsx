@@ -18,6 +18,7 @@ import {
 } from '@patternfly/react-core';
 import { IAppRoute, IAppRouteGroup, routes } from '@app/routes';
 import { BarsIcon } from '@patternfly/react-icons';
+import './AppLayout.css';
 
 interface IAppLayout {
   children: React.ReactNode;
@@ -88,15 +89,24 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
 
   const location = useLocation();
 
-  const renderNavItem = (route: IAppRoute, index: number) => (
-    <NavItem key={`${route.label}-${index}`} id={`${route.label}-${index}`} isActive={route.path === location.pathname}>
-      <NavLink
-        to={route.path}
+  const renderNavItem = (route: IAppRoute, index: number) => {
+    const isNarrowNavItem = route.label === 'Virtual machines' || route.label === 'Pods';
+    return (
+      <NavItem 
+        key={`${route.label}-${index}`} 
+        id={`${route.label}-${index}`} 
+        isActive={route.path === location.pathname}
+        className={isNarrowNavItem ? 'narrow-nav-item' : ''}
       >
-        {route.label}
-      </NavLink>
-    </NavItem>
-  );
+        <NavLink
+          to={route.path}
+          style={isNarrowNavItem ? { maxWidth: 'fit-content', width: 'auto' } : undefined}
+        >
+          {route.label}
+        </NavLink>
+      </NavItem>
+    );
+  };
 
   const renderNavGroup = (group: IAppRouteGroup, groupIndex: number) => (
     <NavExpandable

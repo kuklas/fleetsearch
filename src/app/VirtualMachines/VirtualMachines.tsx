@@ -663,37 +663,43 @@ const VirtualMachines: React.FunctionComponent = () => {
   // Filter and sort VMs
   const filteredVMs = React.useMemo(() => {
     let vms = getAllVMs.filter(vm => {
-      // Apply cluster filter (from tree or dropdown, or from selected project's cluster)
-      // If "all-clusters" is selected, don't filter by cluster at all - show all VMs
-      if (selectedTreeNode === 'all-clusters') {
-        // Show all VMs from all clusters - no cluster filtering
+      // If a namespace is selected from tree, getAllVMs already filtered to that namespace
+      // So we only need to apply other filters (status, search, etc.), not cluster/project filters
+      if (selectedTreeNode?.startsWith('namespace-')) {
+        // Skip cluster and project filtering since getAllVMs already filtered to this namespace
       } else {
-        const effectiveClusterFilter = selectedClusterFromTree || clusterForSelectedProject || clusterFilter;
-        if (effectiveClusterFilter && effectiveClusterFilter !== 'All') {
-          if (Array.isArray(effectiveClusterFilter)) {
-            if (effectiveClusterFilter.length === 0 || !effectiveClusterFilter.includes(vm.cluster)) {
+        // Apply cluster filter (from tree or dropdown, or from selected project's cluster)
+        // If "all-clusters" is selected, don't filter by cluster at all - show all VMs
+        if (selectedTreeNode === 'all-clusters') {
+          // Show all VMs from all clusters - no cluster filtering
+        } else {
+          const effectiveClusterFilter = selectedClusterFromTree || clusterForSelectedProject || clusterFilter;
+          if (effectiveClusterFilter && effectiveClusterFilter !== 'All') {
+            if (Array.isArray(effectiveClusterFilter)) {
+              if (effectiveClusterFilter.length === 0 || !effectiveClusterFilter.includes(vm.cluster)) {
+                return false;
+              }
+            } else if (vm.cluster !== effectiveClusterFilter) {
               return false;
             }
-          } else if (vm.cluster !== effectiveClusterFilter) {
-            return false;
           }
         }
-      }
-      
-      // Apply project filter (from tree or dropdown)
-      if (selectedProjectFromTree) {
-        // If a project is selected from tree, only show that project
-        if (vm.namespace !== selectedProjectFromTree) {
-          return false;
-        }
-      } else if (projectFilter !== 'All') {
-        // If projects are selected from dropdown (can be array for multi-select)
-        if (Array.isArray(projectFilter)) {
-          if (projectFilter.length === 0 || !projectFilter.includes(vm.namespace)) {
+        
+        // Apply project filter (from tree or dropdown)
+        if (selectedProjectFromTree) {
+          // If a project is selected from tree, only show that project
+          if (vm.namespace !== selectedProjectFromTree) {
             return false;
           }
-        } else if (vm.namespace !== projectFilter) {
-          return false;
+        } else if (projectFilter !== 'All') {
+          // If projects are selected from dropdown (can be array for multi-select)
+          if (Array.isArray(projectFilter)) {
+            if (projectFilter.length === 0 || !projectFilter.includes(vm.namespace)) {
+              return false;
+            }
+          } else if (vm.namespace !== projectFilter) {
+            return false;
+          }
         }
       }
       
@@ -3079,48 +3085,7 @@ const VirtualMachines: React.FunctionComponent = () => {
             </ExpandableSection>
           )}
 
-          {filteredVMs.length === 0 ? (
-            <EmptyState>
-              <Title headingLevel="h2" size="lg">
-                {isAdvancedSearchActive ? 'No results found' : 'No virtual machines'}
-              </Title>
-              <EmptyStateBody>
-                {isAdvancedSearchActive 
-                  ? 'No virtual machines match your search criteria. Try adjusting your filters.'
-                  : 'No virtual machines match the selected filters.'}
-              </EmptyStateBody>
-              <EmptyStateActions>
-                <Button 
-                  variant="primary" 
-                  onClick={() => {
-                    // Clear all filters
-                    setSearchValue('');
-                    setStatusFilter('All');
-                    setOSFilter('All');
-                    setClusterFilter('All');
-                    setProjectFilter('All');
-                    setSelectedTreeNode(null);
-                    // Clear advanced search if active
-                    if (isAdvancedSearchActive) {
-                      setAdvancedSearchName('');
-                      setAdvancedSearchCluster([]);
-                      setAdvancedSearchProject([]);
-                      setAdvancedSearchStatus('');
-                      setAdvancedSearchOS('');
-                      setAdvancedSearchVCPUValue('');
-                      setAdvancedSearchMemoryValue('');
-                      setAdvancedSearchIPAddress('');
-                      setIsAdvancedSearchActive(false);
-                    }
-                  }}
-                >
-                  Clear filters
-                </Button>
-              </EmptyStateActions>
-            </EmptyState>
-          ) : (
-            <>
-              <Toolbar 
+          <Toolbar 
                 className={isAdvancedSearchActive ? 'advanced-search-toolbar' : ''}
                 style={{ borderTop: 'none', borderBottom: 'none' }}
               >
@@ -3366,7 +3331,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                                   </MenuToggle>
                                 );
                                 return !isProjectEnabled ? (
-                                  <Tooltip content="To update filters, choose another cluster in the tree view.">
+                                  <Tooltip content="To update filters, choose another project in the tree view.">
                                     <span style={{ display: 'inline-block' }}>{toggle}</span>
                                   </Tooltip>
                                 ) : toggle;
@@ -3825,9 +3790,66 @@ const VirtualMachines: React.FunctionComponent = () => {
                 </div>
               )}
 
-              <div style={{ marginTop: '0', overflowX: 'hidden', width: '100%' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-                  <thead>
+              {(() => {
+                // Check if any filters are active (other than tree selection)
+                const hasActiveFilters = 
+                  searchValue.length > 0 ||
+                  statusFilter !== 'All' ||
+                  osFilter !== 'All' ||
+                  (clusterFilter !== 'All' && !selectedClusterFromTree && !selectedProjectFromTree) ||
+                  (projectFilter !== 'All' && !selectedProjectFromTree) ||
+                  isAdvancedSearchActive;
+                
+                // Only show empty state if filters are active and there are no results
+                if (filteredVMs.length === 0 && hasActiveFilters) {
+                  return (
+                    <EmptyState>
+                      <Title headingLevel="h2" size="lg">
+                        {isAdvancedSearchActive ? 'No results found' : 'No virtual machines'}
+                      </Title>
+                      <EmptyStateBody>
+                        {isAdvancedSearchActive 
+                          ? 'No virtual machines match your search criteria. Try adjusting your filters.'
+                          : 'No virtual machines match the selected filters.'}
+                      </EmptyStateBody>
+                      <EmptyStateActions>
+                        <Button 
+                          variant="primary" 
+                          onClick={() => {
+                            // Clear all filters
+                            setSearchValue('');
+                            setStatusFilter('All');
+                            setOSFilter('All');
+                            setClusterFilter('All');
+                            setProjectFilter('All');
+                            setSelectedTreeNode(null);
+                            // Clear advanced search if active
+                            if (isAdvancedSearchActive) {
+                              setAdvancedSearchName('');
+                              setAdvancedSearchCluster([]);
+                              setAdvancedSearchProject([]);
+                              setAdvancedSearchStatus('');
+                              setAdvancedSearchOS('');
+                              setAdvancedSearchVCPUValue('');
+                              setAdvancedSearchMemoryValue('');
+                              setAdvancedSearchIPAddress('');
+                              setIsAdvancedSearchActive(false);
+                            }
+                          }}
+                        >
+                          Clear filters
+                        </Button>
+                      </EmptyStateActions>
+                    </EmptyState>
+                  );
+                }
+                
+                // If no filters are active and no results, don't show empty state (just show empty table)
+                // Or if there are results, show the table
+                return (
+                  <div style={{ marginTop: '0', overflowX: 'hidden', width: '100%' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                      <thead>
                     <tr style={{ borderBottom: '1px solid var(--pf-t--global--border--color--default)' }}>
                       <th style={{ padding: '12px', textAlign: 'left', fontWeight: 600, width: '40px' }}></th>
                       <th
@@ -4313,9 +4335,9 @@ const VirtualMachines: React.FunctionComponent = () => {
                     })}
                   </tbody>
                 </table>
-              </div>
-            </>
-          )}
+                </div>
+                );
+              })()}
             </>
           )}
         </div>
