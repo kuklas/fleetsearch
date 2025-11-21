@@ -107,7 +107,7 @@ const seededRandom = (seed: number) => {
 };
 
 const generateMockData = () => {
-  const statuses = ['Migrating', 'Paused', 'Provisioning', 'Running', 'Starting', 'Stopped', 'Stopping', 'Terminating', 'Unknown', 'WaitingForVolumeBinding', 'Error'];
+  const statuses = ['Migrating', 'Paused', 'Provisioning', 'Running', 'Starting', 'Stopped', 'Stopping', 'Terminating', 'Unknown', 'WaitingForVolumeBinding', 'Error', 'Failing'];
   
   // Telco cluster names (regional/data center names)
   const clusterNames = [
@@ -209,6 +209,34 @@ const generateMockData = () => {
       });
     }
 
+    // Add a "default" project to af-south-1 cluster
+    if (clusterName === 'af-south-1') {
+      const defaultNamespaceId = `ns-cluster-${clusterIndex + 1}-project-default`;
+      const defaultRandom = seededRandom(randomSeed++);
+      const defaultNumVMs = Math.floor(defaultRandom() * 81);
+      const defaultMaxVMsToRender = Math.min(defaultNumVMs, 3);
+      const defaultVms: Array<{ id: string; name: string; status: string }> = [];
+      
+      for (let vmIndex = 0; vmIndex < defaultMaxVMsToRender; vmIndex++) {
+        const status = statuses[Math.floor(defaultRandom() * statuses.length)];
+        const vmNumber = String(Math.floor(vmCounter) + 1).padStart(2, '0');
+        const vmName = `vm-${vmNumber}`;
+        
+        defaultVms.push({
+          id: `vm-${vmCounter}`,
+          name: vmName,
+          status: status,
+        });
+        vmCounter++;
+      }
+      
+      namespaces.push({
+        id: defaultNamespaceId,
+        name: 'default',
+        vms: defaultVms,
+      });
+    }
+
     clusters.push({
       id: clusterId,
       name: clusterName,
@@ -236,7 +264,7 @@ const VirtualMachines: React.FunctionComponent = () => {
   const [sidebarSearch, setSidebarSearch] = React.useState('');
   const [showOnlyWithVMs, setShowOnlyWithVMs] = React.useState(true);
   const [isTreeExpanded, setIsTreeExpanded] = React.useState(true);
-  const [sidebarWidth, setSidebarWidth] = React.useState(350);
+  const [sidebarWidth, setSidebarWidth] = React.useState(400);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
   const [searchValue, setSearchValue] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<string | string[]>('All');
@@ -750,7 +778,8 @@ const VirtualMachines: React.FunctionComponent = () => {
       Terminating: 0, 
       Unknown: 0, 
       WaitingForVolumeBinding: 0, 
-      Error: 0 
+      Error: 0,
+      Failing: 0
     };
     filteredVMs.forEach(vm => {
       if (vm.status in counts) {
@@ -760,7 +789,7 @@ const VirtualMachines: React.FunctionComponent = () => {
     return counts;
   }, [filteredVMs]);
 
-  const availableStatuses = ['All', 'Migrating', 'Paused', 'Provisioning', 'Running', 'Starting', 'Stopped', 'Stopping', 'Terminating', 'Unknown', 'WaitingForVolumeBinding', 'Error'];
+  const availableStatuses = ['All', 'Migrating', 'Paused', 'Provisioning', 'Running', 'Starting', 'Stopped', 'Stopping', 'Terminating', 'Unknown', 'WaitingForVolumeBinding', 'Error', 'Failing'];
   const availableOSs = ['All', 'RHEL', 'CentOS', 'Ubuntu'];
 
   // Resize handlers
@@ -885,6 +914,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                       e.preventDefault();
                       e.stopPropagation();
                       setSelectedTreeNode(namespaceId);
+                      setSelectedVMDetails(null); // Clear VM details when selecting a project
                       setPage(1);
                     }}
                   >
@@ -903,9 +933,40 @@ const VirtualMachines: React.FunctionComponent = () => {
                 defaultExpanded: expandedNodes.length > 0
                   ? expandedNodes.includes(`namespace-${namespace.id}`)
                   : isTreeExpanded,
-                // Don't render VMs in the tree view to prevent performance issues
-                // VMs will be shown in the table when a project is selected
-                children: [],
+                children: namespace.vms.map(vm => {
+                  const vmId = `vm-${vm.id}`;
+                  const isSelected = selectedTreeNode === vmId || selectedVMDetails === vm.id;
+
+                  return {
+                    name: (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '4px 8px',
+                          margin: '0 -8px',
+                          borderRadius: '4px',
+                          backgroundColor: isSelected ? '#E7F1FA' : 'transparent',
+                          fontWeight: isSelected ? 600 : 400,
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSelectedTreeNode(vmId);
+                          setSelectedVMDetails(vm.id);
+                          setPage(1);
+                        }}
+                      >
+                        <Tooltip content="Virtual Machine">
+                          <DesktopIcon />
+                        </Tooltip>
+                        <span>{vm.name}</span>
+                      </div>
+                    ),
+                    id: vmId,
+                  };
+                }),
               };
             }),
           };
@@ -997,8 +1058,11 @@ const VirtualMachines: React.FunctionComponent = () => {
                 }
                 return;
               }
-              // Don't allow selection of namespace nodes
+              // Handle namespace/project selection
               if (item.id.startsWith('namespace-')) {
+                setSelectedTreeNode(item.id);
+                setSelectedVMDetails(null); // Clear VM details when selecting a project
+                setPage(1);
                 return;
               }
               setSelectedTreeNode(item.id);
@@ -1006,6 +1070,7 @@ const VirtualMachines: React.FunctionComponent = () => {
               // If a cluster is selected, clear project filter to enable multi-select
               if (item.id.startsWith('cluster-')) {
                 setProjectFilter('All');
+                setSelectedVMDetails(null); // Clear VM details when selecting a cluster
               }
               // If it's a VM, show the details panel
               if (item.id.startsWith('vm-')) {
@@ -1364,19 +1429,6 @@ const VirtualMachines: React.FunctionComponent = () => {
                     </DropdownItem>
                   ) : (
                     <>
-                      <DropdownItem isDisabled>
-                        <div
-                          style={{
-                            padding: '8px 16px',
-                            fontWeight: 600,
-                            fontSize: '0.875rem',
-                            borderBottom: '1px solid var(--pf-t--global--border--color--default)',
-                            marginBottom: '4px',
-                          }}
-                        >
-                          Saved searches
-                        </div>
-                      </DropdownItem>
                       {savedSearches.map(search => (
                         <DropdownItem
                           key={search.id}
@@ -3257,30 +3309,42 @@ const VirtualMachines: React.FunctionComponent = () => {
                         ))}
                       </>
                     )}
-                    {/* Project chip(s) - only show when projects are selected from dropdown, not from tree selection */}
+                    {/* Project chip - single chip with all selected projects, each with its own X, plus general X outside */}
                     {(!selectedProjectFromTree && projectFilter !== 'All' && (Array.isArray(projectFilter) ? projectFilter.length > 0 : true)) && (
-                      <>
-                        {(Array.isArray(projectFilter) ? projectFilter : [projectFilter]).map((project, index) => (
-                          <FlexItem key={index}>
-                            <div style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '8px',
-                              border: '1px solid var(--pf-t--global--border--color--default)',
-                              borderRadius: '4px',
-                              padding: '4px 8px',
-                              backgroundColor: 'var(--pf-t--global--background--color--primary--default)'
-                            }}>
-                              <span style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)', fontWeight: 400 }}>Project</span>
-                              <div style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                backgroundColor: '#E7F1FA',
-                                padding: '4px 8px',
-                                borderRadius: '4px',
-                                fontSize: '0.875rem'
-                              }}>
+                      <FlexItem>
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          border: '1px solid var(--pf-t--global--border--color--default)',
+                          borderRadius: '4px',
+                          padding: '4px 8px',
+                          backgroundColor: 'var(--pf-t--global--background--color--primary--default)'
+                        }}>
+                          <span style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)', fontWeight: 400 }}>Project</span>
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            backgroundColor: 'white',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '0.875rem',
+                            flexWrap: 'wrap',
+                            maxWidth: '400px'
+                          }}>
+                            {(Array.isArray(projectFilter) ? projectFilter : [projectFilter]).map((project, index) => (
+                              <div
+                                key={index}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  backgroundColor: '#D0E7F5',
+                                  padding: '2px 6px',
+                                  borderRadius: '3px'
+                                }}
+                              >
                                 <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
                                   {project}
                                 </span>
@@ -3294,16 +3358,24 @@ const VirtualMachines: React.FunctionComponent = () => {
                                       setProjectFilter('All');
                                     }
                                   }}
-                                  aria-label="Remove project filter"
+                                  aria-label={`Remove ${project} filter`}
                                   style={{ padding: '0', minWidth: 'auto', height: 'auto' }}
                                 >
                                   <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
                                 </Button>
                               </div>
-                            </div>
-                          </FlexItem>
-                        ))}
-                      </>
+                            ))}
+                          </div>
+                          <Button
+                            variant="plain"
+                            onClick={() => setProjectFilter('All')}
+                            aria-label="Remove all project filters"
+                            style={{ padding: '0', minWidth: 'auto', height: 'auto', marginLeft: '4px' }}
+                          >
+                            <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                          </Button>
+                        </div>
+                      </FlexItem>
                     )}
                     {/* Status chip - single chip with all selected statuses, each with its own X, plus general X outside */}
                     {statusFilter !== 'All' && (Array.isArray(statusFilter) ? statusFilter.length > 0 : true) && (
@@ -3613,7 +3685,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                     {paginatedVMs.map(vm => {
                       // Determine status icon and color
                       const getStatusIcon = () => {
-                        if (vm.status === 'Error') {
+                        if (vm.status === 'Error' || vm.status === 'Failing') {
                           return <ExclamationTriangleIcon style={{ color: 'var(--pf-t--global--icon--color--status--warning--default)' }} />;
                         } else if (vm.status === 'Stopped' || vm.status === 'Stopping' || vm.status === 'Terminating') {
                           return <ClockIcon style={{ color: 'var(--pf-t--global--icon--color--regular)' }} />;

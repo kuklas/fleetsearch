@@ -200,8 +200,153 @@ const mockPods: Pod[] = [
     cpu: '0.078 cores',
     created: 'Nov 5, 2025, 11:15 AM',
   },
-  // Add more pods to reach 56 total
-  ...Array.from({ length: 46 }, (_, i) => ({
+  // Add ~8 pods in production-west with CrashLoopBackOff status
+  {
+    id: 'pod-crash-1',
+    name: 'api-gateway-crash-7d8f9c2b-1',
+    namespace: 'app-prod',
+    cluster: 'production-west',
+    status: 'CrashLoopBackOff',
+    ready: '0/2',
+    restarts: 12,
+    owner: 'api-gateway-crash-7d8f9c2b',
+    memory: '156.3 MiB',
+    cpu: '0.078 cores',
+    created: 'Nov 8, 2025, 3:15 PM',
+  },
+  {
+    id: 'pod-crash-2',
+    name: 'auth-service-crash-5a6b7c8d-2',
+    namespace: 'default',
+    cluster: 'production-west',
+    status: 'CrashLoopBackOff',
+    ready: '0/2',
+    restarts: 8,
+    owner: 'auth-service-crash-5a6b7c8d',
+    memory: '98.7 MiB',
+    cpu: '0.045 cores',
+    created: 'Nov 9, 2025, 1:30 AM',
+  },
+  {
+    id: 'pod-crash-3',
+    name: 'payment-processor-crash-3e4f5a6b-1',
+    namespace: 'app-prod',
+    cluster: 'production-west',
+    status: 'CrashLoopBackOff',
+    ready: '0/2',
+    restarts: 15,
+    owner: 'payment-processor-crash-3e4f5a6b',
+    memory: '234.1 MiB',
+    cpu: '0.112 cores',
+    created: 'Nov 7, 2025, 5:45 PM',
+  },
+  {
+    id: 'pod-crash-4',
+    name: 'notification-service-crash-9c0d1e2f-3',
+    namespace: 'default',
+    cluster: 'production-west',
+    status: 'CrashLoopBackOff',
+    ready: '0/2',
+    restarts: 7,
+    owner: 'notification-service-crash-9c0d1e2f',
+    memory: '67.4 MiB',
+    cpu: '0.034 cores',
+    created: 'Nov 8, 2025, 9:20 AM',
+  },
+  {
+    id: 'pod-crash-5',
+    name: 'data-sync-crash-1a2b3c4d-2',
+    namespace: 'database',
+    cluster: 'production-west',
+    status: 'CrashLoopBackOff',
+    ready: '0/2',
+    restarts: 11,
+    owner: 'data-sync-crash-1a2b3c4d',
+    memory: '189.6 MiB',
+    cpu: '0.089 cores',
+    created: 'Nov 6, 2025, 2:10 PM',
+  },
+  {
+    id: 'pod-crash-6',
+    name: 'cache-manager-crash-5e6f7a8b-1',
+    namespace: 'app-prod',
+    cluster: 'production-west',
+    status: 'CrashLoopBackOff',
+    ready: '0/2',
+    restarts: 9,
+    owner: 'cache-manager-crash-5e6f7a8b',
+    memory: '145.2 MiB',
+    cpu: '0.067 cores',
+    created: 'Nov 9, 2025, 6:30 AM',
+  },
+  {
+    id: 'pod-crash-7',
+    name: 'log-aggregator-crash-8c9d0e1f-2',
+    namespace: 'logging',
+    cluster: 'production-west',
+    status: 'CrashLoopBackOff',
+    ready: '0/2',
+    restarts: 13,
+    owner: 'log-aggregator-crash-8c9d0e1f',
+    memory: '178.9 MiB',
+    cpu: '0.082 cores',
+    created: 'Nov 7, 2025, 11:45 AM',
+  },
+  {
+    id: 'pod-crash-8',
+    name: 'metrics-collector-crash-2b3c4d5e-1',
+    namespace: 'monitoring',
+    cluster: 'production-west',
+    status: 'CrashLoopBackOff',
+    ready: '0/2',
+    restarts: 6,
+    owner: 'metrics-collector-crash-2b3c4d5e',
+    memory: '112.5 MiB',
+    cpu: '0.052 cores',
+    created: 'Nov 8, 2025, 4:25 PM',
+  },
+  // Add 2-3 pods with >10 restarts (but not CrashLoopBackOff)
+  {
+    id: 'pod-restart-1',
+    name: 'worker-process-7f8a9b0c-4',
+    namespace: 'app-prod',
+    cluster: 'production-east',
+    status: 'Running',
+    ready: '2/2',
+    restarts: 14,
+    owner: 'worker-process-7f8a9b0c',
+    memory: '203.7 MiB',
+    cpu: '0.095 cores',
+    created: 'Nov 5, 2025, 8:15 AM',
+  },
+  {
+    id: 'pod-restart-2',
+    name: 'background-job-3d4e5f6a-5',
+    namespace: 'default',
+    cluster: 'staging-west',
+    status: 'Running',
+    ready: '2/2',
+    restarts: 18,
+    owner: 'background-job-3d4e5f6a',
+    memory: '167.3 MiB',
+    cpu: '0.078 cores',
+    created: 'Nov 4, 2025, 3:40 PM',
+  },
+  {
+    id: 'pod-restart-3',
+    name: 'scheduled-task-9a0b1c2d-3',
+    namespace: 'kube-system',
+    cluster: 'dev-central',
+    status: 'Running',
+    ready: '1/2',
+    restarts: 16,
+    owner: 'scheduled-task-9a0b1c2d',
+    memory: '134.8 MiB',
+    cpu: '0.063 cores',
+    created: 'Nov 3, 2025, 10:20 AM',
+  },
+  // Add more pods to reach desired total
+  ...Array.from({ length: 35 }, (_, i) => ({
     id: `pod-${i + 11}`,
     name: `pod-${i + 11}-${Math.random().toString(36).substring(7)}`,
     namespace: ['default', 'kube-system', 'monitoring', 'logging', 'app-prod', 'qa-north', 'database', 'multicluster-engine'][i % 8],
@@ -275,8 +420,17 @@ const Pods: React.FunctionComponent = () => {
     { id: 'receivingTraffic', label: 'Receiving Traffic' },
   ];
   
-  const defaultVisibleColumns = ['namespace', 'cluster', 'name', 'status', 'ready', 'restarts', 'owner', 'memory', 'cpu', 'created'];
-  const [visibleColumns, setVisibleColumns] = React.useState<string[]>(defaultVisibleColumns);
+  const defaultVisibleColumns = ['name', 'namespace', 'cluster', 'status', 'ready', 'owner', 'memory', 'cpu', 'created'];
+  const [visibleColumns, setVisibleColumns] = React.useState<string[]>(() => {
+    // Ensure 'name' is always first
+    const columns = [...defaultVisibleColumns];
+    const nameIndex = columns.indexOf('name');
+    if (nameIndex !== -1 && nameIndex !== 0) {
+      columns.splice(nameIndex, 1);
+      columns.unshift('name');
+    }
+    return columns;
+  });
   const [draggedColumn, setDraggedColumn] = React.useState<string | null>(null);
   const [isSearchMenuOpen, setIsSearchMenuOpen] = React.useState(false);
   const [searchInputValue, setSearchInputValue] = React.useState('');
@@ -697,7 +851,14 @@ const Pods: React.FunctionComponent = () => {
     if (visibleColumns.length >= 9) return; // Max 9 columns
     if (visibleColumns.includes(columnId)) return; // Already added
     
-    setVisibleColumns([...visibleColumns, columnId]);
+    const newColumns = [...visibleColumns, columnId];
+    // Ensure 'name' is always first
+    const nameIndex = newColumns.indexOf('name');
+    if (nameIndex !== -1 && nameIndex !== 0) {
+      newColumns.splice(nameIndex, 1);
+      newColumns.unshift('name');
+    }
+    setVisibleColumns(newColumns);
   };
 
   const handleDragStart = (columnId: string) => {
@@ -708,6 +869,9 @@ const Pods: React.FunctionComponent = () => {
     e.preventDefault();
     if (!draggedColumn || draggedColumn === targetColumnId) return;
     
+    // Prevent moving the 'name' column
+    if (draggedColumn === 'name' || targetColumnId === 'name') return;
+    
     const draggedIndex = visibleColumns.indexOf(draggedColumn);
     const targetIndex = visibleColumns.indexOf(targetColumnId);
     
@@ -716,6 +880,14 @@ const Pods: React.FunctionComponent = () => {
     const newColumns = [...visibleColumns];
     newColumns.splice(draggedIndex, 1);
     newColumns.splice(targetIndex, 0, draggedColumn);
+    
+    // Ensure 'name' is always first
+    const nameIndex = newColumns.indexOf('name');
+    if (nameIndex !== -1 && nameIndex !== 0) {
+      newColumns.splice(nameIndex, 1);
+      newColumns.unshift('name');
+    }
+    
     setVisibleColumns(newColumns);
   };
 
@@ -724,7 +896,14 @@ const Pods: React.FunctionComponent = () => {
   };
 
   const handleRestoreDefaults = () => {
-    setVisibleColumns(defaultVisibleColumns);
+    // Ensure 'name' is always first
+    const columns = [...defaultVisibleColumns];
+    const nameIndex = columns.indexOf('name');
+    if (nameIndex !== -1 && nameIndex !== 0) {
+      columns.splice(nameIndex, 1);
+      columns.unshift('name');
+    }
+    setVisibleColumns(columns);
   };
 
   const handleSaveColumns = () => {
@@ -816,7 +995,12 @@ const Pods: React.FunctionComponent = () => {
       const fieldFilters = filtersByField[fieldKey];
       
       if (fieldKey === 'namespace') {
-        if (!fieldFilters.some(f => f.value === 'All')) {
+        // When counting namespace options, exclude all namespace filters except the one being counted
+        // This allows us to see counts for each namespace option independently
+        if (field.toLowerCase() === 'namespace' && value !== 'All') {
+          // Don't apply namespace filters when counting a specific namespace
+          // We want to see how many pods match this namespace given other filters
+        } else if (!fieldFilters.some(f => f.value === 'All')) {
           const values = fieldFilters.map(f => f.value.toLowerCase());
           filtered = filtered.filter(pod => values.includes(pod.namespace.toLowerCase()));
         }
@@ -1950,10 +2134,16 @@ const Pods: React.FunctionComponent = () => {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--pf-t--global--border--color--default)' }}>
-                    {visibleColumns.map(columnId => (
+                    {visibleColumns.map((columnId, index) => (
                       <th
                         key={columnId}
-                        style={{ padding: '12px', textAlign: 'left', fontWeight: 600, cursor: 'pointer', userSelect: 'none' }}
+                        style={{ 
+                          padding: '12px', 
+                          textAlign: 'left', 
+                          fontWeight: 600, 
+                          cursor: 'pointer', 
+                          userSelect: 'none'
+                        }}
                         onClick={() => handleSort(columnId)}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1974,7 +2164,12 @@ const Pods: React.FunctionComponent = () => {
                       }}
                     >
                       {visibleColumns.map(columnId => (
-                        <td key={columnId} style={{ padding: '12px' }}>
+                        <td 
+                          key={columnId} 
+                          style={{ 
+                            padding: '12px'
+                          }}
+                        >
                           {renderTableCell(pod, columnId)}
                         </td>
                       ))}
@@ -2100,9 +2295,17 @@ const Pods: React.FunctionComponent = () => {
               return (
                 <div
                   key={columnId}
-                  draggable={!isRequired}
-                  onDragStart={() => handleDragStart(columnId)}
-                  onDragOver={(e) => handleDragOver(e, columnId)}
+                  draggable={!isRequired && columnId !== 'name'}
+                  onDragStart={() => {
+                    if (columnId !== 'name') {
+                      handleDragStart(columnId);
+                    }
+                  }}
+                  onDragOver={(e) => {
+                    if (columnId !== 'name') {
+                      handleDragOver(e, columnId);
+                    }
+                  }}
                   onDragEnd={handleDragEnd}
                   style={{
                     display: 'flex',
@@ -2113,7 +2316,12 @@ const Pods: React.FunctionComponent = () => {
                     backgroundColor: draggedColumn === columnId ? 'var(--pf-t--global--background--color--secondary--default)' : 'transparent',
                   }}
                 >
-                  <div style={{ marginRight: '12px', color: 'var(--pf-t--global--text--color--subtle)' }}>
+                  <div style={{ 
+                    marginRight: '12px', 
+                    color: (isRequired || columnId === 'name') 
+                      ? 'var(--pf-t--global--text--color--disabled)' 
+                      : 'var(--pf-t--global--text--color--subtle)'
+                  }}>
                     <GripVerticalIcon />
                   </div>
                   <div style={{ flex: 1 }}>
