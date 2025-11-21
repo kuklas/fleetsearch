@@ -2112,7 +2112,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                     </Label>
                   </FlexItem>
                 )}
-                {(advancedSearchName || advancedSearchCluster !== 'all' || advancedSearchProject !== 'all' ||
+                {(advancedSearchName || advancedSearchCluster.length > 0 || advancedSearchProject.length > 0 ||
                   advancedSearchStatus || advancedSearchOS || advancedSearchVCPUValue ||
                   advancedSearchMemoryValue || advancedSearchIPAddress) && (
                     <FlexItem>
@@ -2697,9 +2697,12 @@ const VirtualMachines: React.FunctionComponent = () => {
                               <Title headingLevel="h4" size="md">Cluster</Title>
                             </FlexItem>
                             {(() => {
-                              const hasClusterFilter = clusterFilter !== 'All' && (Array.isArray(clusterFilter) ? clusterFilter.length > 0 : true);
-                              const hasProjectFilter = projectFilter !== 'All' && (Array.isArray(projectFilter) ? projectFilter.length > 0 : true);
-                              const hasStatusFilter = statusFilter !== 'All' && (Array.isArray(statusFilter) ? statusFilter.length > 0 : true);
+                              const clusterFilterArray: string[] = Array.isArray(clusterFilter) ? clusterFilter : (clusterFilter !== 'All' ? [clusterFilter] : []);
+                              const projectFilterArray: string[] = Array.isArray(projectFilter) ? projectFilter : (projectFilter !== 'All' ? [projectFilter] : []);
+                              const statusFilterArray: string[] = Array.isArray(statusFilter) ? statusFilter : (statusFilter !== 'All' ? [statusFilter] : []);
+                              const hasClusterFilter = clusterFilterArray.length > 0;
+                              const hasProjectFilter = projectFilterArray.length > 0;
+                              const hasStatusFilter = statusFilterArray.length > 0;
                               const isAllClustersSelected = selectedTreeNode === 'all-clusters';
                               
                               // Show "All clusters" text if selected from tree or if any filters are applied
@@ -2717,7 +2720,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                                         <Badge>{(() => {
                                           // Calculate cluster count
                                           if (hasClusterFilter) {
-                                            return Array.isArray(clusterFilter) ? clusterFilter.length : 1;
+                                            return clusterFilterArray.length;
                                           }
                                           return getAllClusters().length;
                                         })()}</Badge>
@@ -2729,11 +2732,10 @@ const VirtualMachines: React.FunctionComponent = () => {
                                         <Badge>{(() => {
                                           // Calculate project count based on filters
                                           if (hasProjectFilter) {
-                                            return Array.isArray(projectFilter) ? projectFilter.length : 1;
+                                            return projectFilterArray.length;
                                           } else if (hasClusterFilter) {
-                                            const selectedClusterNames = Array.isArray(clusterFilter) ? clusterFilter : [clusterFilter];
                                             const selectedClusterIds = getAllClusters()
-                                              .filter(c => selectedClusterNames.includes(c.name))
+                                              .filter(c => clusterFilterArray.includes(c.name))
                                               .map(c => c.id);
                                             return getAllNamespaces().filter(n => selectedClusterIds.includes(n.clusterId)).length;
                                           }
@@ -2973,8 +2975,8 @@ const VirtualMachines: React.FunctionComponent = () => {
                     // Clear advanced search if active
                     if (isAdvancedSearchActive) {
                       setAdvancedSearchName('');
-                      setAdvancedSearchCluster('all');
-                      setAdvancedSearchProject('all');
+                      setAdvancedSearchCluster([]);
+                      setAdvancedSearchProject([]);
                       setAdvancedSearchStatus('');
                       setAdvancedSearchOS('');
                       setAdvancedSearchVCPUValue('');
@@ -5002,8 +5004,8 @@ const VirtualMachines: React.FunctionComponent = () => {
           </Button>
           <Button variant="secondary" onClick={() => {
             setAdvancedSearchName('');
-            setAdvancedSearchCluster('all');
-            setAdvancedSearchProject('all');
+            setAdvancedSearchCluster([]);
+            setAdvancedSearchProject([]);
             setAdvancedSearchDescription('');
             setAdvancedSearchStatus('');
             setAdvancedSearchOS('');
