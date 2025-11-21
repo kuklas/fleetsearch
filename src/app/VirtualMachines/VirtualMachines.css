@@ -345,6 +345,37 @@ body.resizing-sidebar * {
   background-color: var(--pf-t--global--background--color--primary--hover) !important;
 }
 
+/* Force cluster dropdown to look enabled when "all-clusters" is selected in treeview */
+.vm-main-content .cluster-dropdown-enabled,
+.vm-main-content .cluster-dropdown-enabled.pf-v6-c-menu-toggle,
+.vm-main-content .cluster-dropdown-enabled.pf-v6-c-menu-toggle[disabled],
+.vm-main-content .cluster-dropdown-enabled.pf-v6-c-menu-toggle[aria-disabled="true"] {
+  opacity: 1 !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  color: var(--pf-t--global--text--color--regular) !important;
+  background-color: var(--pf-t--global--background--color--primary--default) !important;
+}
+
+.vm-main-content .cluster-dropdown-enabled:hover,
+.vm-main-content .cluster-dropdown-enabled.pf-v6-c-menu-toggle:hover {
+  background-color: var(--pf-t--global--background--color--primary--hover) !important;
+  opacity: 1 !important;
+}
+
+/* Override PatternFly disabled state styling for cluster dropdown */
+.vm-main-content .cluster-dropdown-enabled.pf-v6-c-menu-toggle[disabled],
+.vm-main-content .cluster-dropdown-enabled.pf-v6-c-menu-toggle[aria-disabled="true"] {
+  opacity: 1 !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+.vm-main-content .cluster-dropdown-enabled.pf-v6-c-menu-toggle[disabled]:hover,
+.vm-main-content .cluster-dropdown-enabled.pf-v6-c-menu-toggle[aria-disabled="true"]:hover {
+  background-color: var(--pf-t--global--background--color--primary--hover) !important;
+}
+
 /* Make disabled dropdowns look exactly like PatternFly disabled buttons */
 .vm-main-content .pf-v6-c-menu-toggle[disabled],
 .vm-main-content .pf-v6-c-menu-toggle[aria-disabled="true"] {
@@ -367,5 +398,39 @@ body.resizing-sidebar * {
   color: #6a6e73 !important; /* Keep dark grey text */
   border-color: #d2d2d2 !important;
   box-shadow: none !important;
+}
+
+/* Remove borders/strokes from status icons in VirtualMachines card */
+.vm-main-content .pf-v6-c-grid svg,
+.vm-main-content .pf-v6-c-grid svg * {
+  stroke: none !important;
+  stroke-width: 0 !important;
+  fill: white !important;
+  vector-effect: non-scaling-stroke !important;
+}
+
+/* Advanced search modal - horizontal form layout */
+.pf-v6-c-modal .pf-v6-c-form__group > .pf-v6-c-form__label {
+  display: none !important;
+}
+
+/* Advanced search modal - increase spacing in dropdown items */
+.pf-v6-c-modal .pf-v6-c-menu__list-item {
+  padding: var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--lg) !important;
+  min-height: 40px !important;
+}
+
+.pf-v6-c-modal .pf-v6-c-menu__list-item:hover {
+  background-color: var(--pf-t--global--background--color--primary--hover) !important;
+}
+
+/* Make entire dropdown item clickable in advanced search modal */
+.pf-v6-c-modal .pf-v6-c-menu__list-item > * {
+  pointer-events: none;
+}
+
+.pf-v6-c-modal .pf-v6-c-menu__list-item {
+  cursor: pointer;
+  pointer-events: auto;
 }
 

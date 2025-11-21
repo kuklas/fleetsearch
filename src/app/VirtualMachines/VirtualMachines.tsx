@@ -91,6 +91,7 @@ import {
   CogIcon,
   TimesIcon,
   TrashIcon,
+  CheckIcon,
 } from '@patternfly/react-icons';
 import { useDocumentTitle } from '@app/utils/useDocumentTitle';
 import './VirtualMachines.css';
@@ -304,8 +305,8 @@ const VirtualMachines: React.FunctionComponent = () => {
     description: string;
     // Advanced search parameters
     advancedSearchName: string;
-    advancedSearchCluster: string;
-    advancedSearchProject: string;
+    advancedSearchCluster: string[];
+    advancedSearchProject: string[];
     advancedSearchDescription: string;
     advancedSearchStatus: string;
     advancedSearchOS: string;
@@ -327,8 +328,10 @@ const VirtualMachines: React.FunctionComponent = () => {
 
   // Advanced search form state
   const [advancedSearchName, setAdvancedSearchName] = React.useState('');
-  const [advancedSearchCluster, setAdvancedSearchCluster] = React.useState('all');
-  const [advancedSearchProject, setAdvancedSearchProject] = React.useState('all');
+  const [advancedSearchCluster, setAdvancedSearchCluster] = React.useState<string[]>([]);
+  const [advancedSearchProject, setAdvancedSearchProject] = React.useState<string[]>([]);
+  const [clusterSearchValue, setClusterSearchValue] = React.useState('');
+  const [projectSearchValue, setProjectSearchValue] = React.useState('');
   const [advancedSearchDescription, setAdvancedSearchDescription] = React.useState('');
   const [advancedSearchStatus, setAdvancedSearchStatus] = React.useState('');
   const [advancedSearchOS, setAdvancedSearchOS] = React.useState('');
@@ -698,15 +701,13 @@ const VirtualMachines: React.FunctionComponent = () => {
         if (advancedSearchName && !vm.name.toLowerCase().includes(advancedSearchName.toLowerCase())) {
           return false;
         }
-        if (advancedSearchCluster !== 'all') {
-          const cluster = getAllClusters().find(c => c.name === advancedSearchCluster);
-          if (!cluster || vm.cluster !== cluster.name) {
+        if (advancedSearchCluster.length > 0) {
+          if (!advancedSearchCluster.includes(vm.cluster)) {
             return false;
           }
         }
-        if (advancedSearchProject !== 'all') {
-          const project = getAllNamespaces().find(n => n.name === advancedSearchProject);
-          if (!project || vm.namespace !== project.name) {
+        if (advancedSearchProject.length > 0) {
+          if (!advancedSearchProject.includes(vm.namespace)) {
             return false;
           }
         }
@@ -1529,8 +1530,8 @@ const VirtualMachines: React.FunctionComponent = () => {
                   onClick={() => {
                     setIsAdvancedSearchActive(false);
                     setAdvancedSearchName('');
-                    setAdvancedSearchCluster('all');
-                    setAdvancedSearchProject('all');
+                    setAdvancedSearchCluster([]);
+                    setAdvancedSearchProject([]);
                     setAdvancedSearchDescription('');
                     setAdvancedSearchStatus('');
                     setAdvancedSearchOS('');
@@ -1559,7 +1560,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                         isExpanded={isAdvSearchResultsClusterOpen}
                         variant="default"
                       >
-                        Cluster: {advancedSearchCluster !== 'all' ? advancedSearchCluster : 'All'}
+                        Cluster: {advancedSearchCluster.length > 0 ? advancedSearchCluster.join(', ') : 'All'}
                       </MenuToggle>
                     )}
                   >
@@ -1567,7 +1568,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                       <DropdownItem
                         key="all"
                         onClick={() => {
-                          setAdvancedSearchCluster('all');
+                          setAdvancedSearchCluster([]);
                           setIsAdvSearchResultsClusterOpen(false);
                         }}
                       >
@@ -1575,7 +1576,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                           <FlexItem>
                             <Checkbox
                               id="adv-search-cluster-all"
-                              isChecked={advancedSearchCluster === 'all'}
+                              isChecked={advancedSearchCluster.length === 0}
                               onChange={() => {}}
                               onClick={(e) => e.stopPropagation()}
                             />
@@ -1588,16 +1589,20 @@ const VirtualMachines: React.FunctionComponent = () => {
                       {getAllClusters().map(cluster => (
                         <DropdownItem
                           key={cluster.id}
-                          onClick={() => {
-                            setAdvancedSearchCluster(cluster.name);
-                            setIsAdvSearchResultsClusterOpen(false);
-                          }}
+                            onClick={(e) => {
+                              e?.stopPropagation();
+                              if (advancedSearchCluster.includes(cluster.name)) {
+                                setAdvancedSearchCluster(prev => prev.filter(c => c !== cluster.name));
+                              } else {
+                                setAdvancedSearchCluster(prev => [...prev, cluster.name]);
+                              }
+                            }}
                         >
                           <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
                             <FlexItem>
                               <Checkbox
                                 id={`adv-search-cluster-${cluster.id}`}
-                                isChecked={advancedSearchCluster === cluster.name}
+                                isChecked={advancedSearchCluster.includes(cluster.name)}
                                 onChange={() => {}}
                                 onClick={(e) => e.stopPropagation()}
                               />
@@ -1623,7 +1628,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                         isExpanded={isAdvSearchResultsProjectOpen}
                         variant="default"
                       >
-                        Project: {advancedSearchProject !== 'all' ? advancedSearchProject : 'All'}
+                        Project: {advancedSearchProject.length > 0 ? advancedSearchProject.join(', ') : 'All'}
                       </MenuToggle>
                     )}
                   >
@@ -1631,7 +1636,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                       <DropdownItem
                         key="all"
                         onClick={() => {
-                          setAdvancedSearchProject('all');
+                          setAdvancedSearchProject([]);
                           setIsAdvSearchResultsProjectOpen(false);
                         }}
                       >
@@ -1639,7 +1644,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                           <FlexItem>
                             <Checkbox
                               id="adv-search-project-all"
-                              isChecked={advancedSearchProject === 'all'}
+                              isChecked={advancedSearchProject.length === 0}
                               onChange={() => {}}
                               onClick={(e) => e.stopPropagation()}
                             />
@@ -1650,20 +1655,27 @@ const VirtualMachines: React.FunctionComponent = () => {
                         </Flex>
                       </DropdownItem>
                       {getAllNamespaces()
-                        .filter(ns => advancedSearchCluster === 'all' || ns.clusterId === getAllClusters().find(c => c.name === advancedSearchCluster)?.id)
+                        .filter(ns => advancedSearchCluster.length === 0 || advancedSearchCluster.some(clusterName => {
+                          const cluster = getAllClusters().find(c => c.name === clusterName);
+                          return cluster && ns.clusterId === cluster.id;
+                        }))
                         .map(namespace => (
                           <DropdownItem
                             key={namespace.id}
-                            onClick={() => {
-                              setAdvancedSearchProject(namespace.name);
-                              setIsAdvSearchResultsProjectOpen(false);
+                            onClick={(e) => {
+                              e?.stopPropagation();
+                              if (advancedSearchProject.includes(namespace.name)) {
+                                setAdvancedSearchProject(prev => prev.filter(p => p !== namespace.name));
+                              } else {
+                                setAdvancedSearchProject(prev => [...prev, namespace.name]);
+                              }
                             }}
                           >
                             <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
                               <FlexItem>
                                 <Checkbox
                                   id={`adv-search-project-${namespace.id}`}
-                                  isChecked={advancedSearchProject === namespace.name}
+                                  isChecked={advancedSearchProject.includes(namespace.name)}
                                   onChange={() => {}}
                                   onClick={(e) => e.stopPropagation()}
                                 />
@@ -2023,28 +2035,28 @@ const VirtualMachines: React.FunctionComponent = () => {
                     </Label>
                   </FlexItem>
                 )}
-                {advancedSearchCluster !== 'all' && (
-                  <FlexItem>
+                {advancedSearchCluster.length > 0 && advancedSearchCluster.map((cluster, index) => (
+                  <FlexItem key={index}>
                     <Label
                       color="grey"
-                      onClose={() => setAdvancedSearchCluster('all')}
+                      onClose={() => setAdvancedSearchCluster(prev => prev.filter(c => c !== cluster))}
                       closeBtnAriaLabel="Remove cluster filter"
                     >
-                      Cluster: {advancedSearchCluster}
+                      Cluster: {cluster}
                     </Label>
                   </FlexItem>
-                )}
-                {advancedSearchProject !== 'all' && (
-                  <FlexItem>
+                ))}
+                {advancedSearchProject.length > 0 && advancedSearchProject.map((project, index) => (
+                  <FlexItem key={index}>
                     <Label
                       color="grey"
-                      onClose={() => setAdvancedSearchProject('all')}
+                      onClose={() => setAdvancedSearchProject(prev => prev.filter(p => p !== project))}
                       closeBtnAriaLabel="Remove project filter"
                     >
-                      Project: {advancedSearchProject}
+                      Project: {project}
                     </Label>
                   </FlexItem>
-                )}
+                ))}
                 {advancedSearchStatus && (
                   <FlexItem>
                     <Label
@@ -2108,8 +2120,8 @@ const VirtualMachines: React.FunctionComponent = () => {
                         variant="link"
                         onClick={() => {
                           setAdvancedSearchName('');
-                          setAdvancedSearchCluster('all');
-                          setAdvancedSearchProject('all');
+                          setAdvancedSearchCluster([]);
+                          setAdvancedSearchProject([]);
                           setAdvancedSearchStatus('');
                           setAdvancedSearchOS('');
                           setAdvancedSearchVCPUValue('');
@@ -2590,6 +2602,62 @@ const VirtualMachines: React.FunctionComponent = () => {
                               </div>
                             </FlexItem>
                           </>
+                        ) : (selectedTreeNode === 'all-clusters' && (clusterFilter !== 'All' || (projectFilter !== 'All' && (Array.isArray(projectFilter) ? projectFilter.length > 0 : true)))) ? (
+                          // If "All clusters" is selected and filters are applied, show counts
+                          <>
+                            <FlexItem>
+                              <Title headingLevel="h4" size="md">Cluster</Title>
+                            </FlexItem>
+                            {(() => {
+                              const hasClusterFilter = clusterFilter !== 'All' && (Array.isArray(clusterFilter) ? clusterFilter.length > 0 : true);
+                              const hasProjectFilter = projectFilter !== 'All' && (Array.isArray(projectFilter) ? projectFilter.length > 0 : true);
+                              
+                              // Calculate cluster count
+                              const clusterCount = hasClusterFilter 
+                                ? (Array.isArray(clusterFilter) ? clusterFilter.length : 1)
+                                : getAllClusters().length;
+                              
+                              // Calculate project count based on filters
+                              let projectCount = 0;
+                              if (hasProjectFilter) {
+                                // Count selected projects
+                                projectCount = Array.isArray(projectFilter) ? projectFilter.length : 1;
+                              } else if (hasClusterFilter) {
+                                // Count projects in selected clusters
+                                const selectedClusterNames = Array.isArray(clusterFilter) ? clusterFilter : [clusterFilter];
+                                const selectedClusterIds = getAllClusters()
+                                  .filter(c => selectedClusterNames.includes(c.name))
+                                  .map(c => c.id);
+                                projectCount = getAllNamespaces().filter(n => selectedClusterIds.includes(n.clusterId)).length;
+                              } else {
+                                // Count all projects
+                                projectCount = getAllNamespaces().length;
+                              }
+                              
+                              return (
+                                <>
+                                  <FlexItem>
+                                    <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                                      <Badge>{clusterCount}</Badge>
+                                      <span style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>Clusters</span>
+                                    </Flex>
+                                  </FlexItem>
+                                  <FlexItem>
+                                    <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                                      <Badge>{projectCount}</Badge>
+                                      <span style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>Projects</span>
+                                    </Flex>
+                                  </FlexItem>
+                                  <FlexItem>
+                                    <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                                      <Badge>{filteredVMs.length}</Badge>
+                                      <span style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>Virtual machines</span>
+                                    </Flex>
+                                  </FlexItem>
+                                </>
+                              );
+                            })()}
+                          </>
                         ) : (selectedClusterFromTree || clusterFilter !== 'All') ? (
                           // If cluster is selected, show badges with counts
                           <>
@@ -2623,16 +2691,68 @@ const VirtualMachines: React.FunctionComponent = () => {
                             </FlexItem>
                           </>
                         ) : (
-                          // Default: show All clusters
+                          // Default: show All clusters, or counts if filters are applied or "All clusters" is selected
                           <>
                             <FlexItem>
                               <Title headingLevel="h4" size="md">Cluster</Title>
                             </FlexItem>
-                            <FlexItem>
-                              <div style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>
-                                All clusters
-                              </div>
-                            </FlexItem>
+                            {(() => {
+                              const hasClusterFilter = clusterFilter !== 'All' && (Array.isArray(clusterFilter) ? clusterFilter.length > 0 : true);
+                              const hasProjectFilter = projectFilter !== 'All' && (Array.isArray(projectFilter) ? projectFilter.length > 0 : true);
+                              const hasStatusFilter = statusFilter !== 'All' && (Array.isArray(statusFilter) ? statusFilter.length > 0 : true);
+                              const isAllClustersSelected = selectedTreeNode === 'all-clusters';
+                              
+                              // Show "All clusters" text if selected from tree or if any filters are applied
+                              if (isAllClustersSelected || hasClusterFilter || hasProjectFilter || hasStatusFilter) {
+                                return (
+                                  <>
+                                    <FlexItem>
+                                      <div style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>
+                                        All clusters
+                                      </div>
+                                    </FlexItem>
+                                    {/* Show counts */}
+                                    <FlexItem>
+                                      <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                                        <Badge>{(() => {
+                                          // Calculate cluster count
+                                          if (hasClusterFilter) {
+                                            return Array.isArray(clusterFilter) ? clusterFilter.length : 1;
+                                          }
+                                          return getAllClusters().length;
+                                        })()}</Badge>
+                                        <span style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>Clusters</span>
+                                      </Flex>
+                                    </FlexItem>
+                                    <FlexItem>
+                                      <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                                        <Badge>{(() => {
+                                          // Calculate project count based on filters
+                                          if (hasProjectFilter) {
+                                            return Array.isArray(projectFilter) ? projectFilter.length : 1;
+                                          } else if (hasClusterFilter) {
+                                            const selectedClusterNames = Array.isArray(clusterFilter) ? clusterFilter : [clusterFilter];
+                                            const selectedClusterIds = getAllClusters()
+                                              .filter(c => selectedClusterNames.includes(c.name))
+                                              .map(c => c.id);
+                                            return getAllNamespaces().filter(n => selectedClusterIds.includes(n.clusterId)).length;
+                                          }
+                                          return getAllNamespaces().length;
+                                        })()}</Badge>
+                                        <span style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>Projects</span>
+                                      </Flex>
+                                    </FlexItem>
+                                    <FlexItem>
+                                      <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                                        <Badge>{filteredVMs.length}</Badge>
+                                        <span style={{ fontSize: '14px', color: 'var(--pf-t--global--text--color--regular)' }}>Virtual machines</span>
+                                      </Flex>
+                                    </FlexItem>
+                                  </>
+                                );
+                              }
+                              return null;
+                            })()}
                           </>
                         )}
                       </Flex>
@@ -2649,56 +2769,108 @@ const VirtualMachines: React.FunctionComponent = () => {
                           <Title headingLevel="h4" size="md">VirtualMachines ({filteredVMs.length})</Title>
                         </FlexItem>
                         <FlexItem>
-                          <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsXs' }}>
-                            <FlexItem>
+                          <Grid hasGutter>
+                            {/* Error - Top Left */}
+                            <GridItem span={6}>
                               <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
                                 <FlexItem>
-                                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--pf-t--global--icon--color--status--danger--default)' }} />
+                                  <div style={{
+                                    width: '16px',
+                                    height: '16px',
+                                    borderRadius: '50%',
+                                    backgroundColor: '#C9190B',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    padding: 0,
+                                    margin: 0,
+                                    boxSizing: 'border-box',
+                                    border: '0.5px solid #C9190B'
+                                  }}>
+                                    <span style={{ fontSize: '12px', color: 'white', fontWeight: 'bold', lineHeight: '1' }}>!</span>
+                                  </div>
                                 </FlexItem>
                                 <FlexItem>
-                                  <span style={{ fontSize: '14px' }}>{vmStatusCounts.Error} Error</span>
+                                  <span style={{ fontSize: '14px', color: '#0066CC' }}>{vmStatusCounts.Error} Error</span>
                                 </FlexItem>
                               </Flex>
-                            </FlexItem>
-                            <FlexItem>
+                            </GridItem>
+                            {/* Stopped - Top Right */}
+                            <GridItem span={6}>
                               <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
                                 <FlexItem>
-                                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--pf-t--global--icon--color--status--success--default)' }} />
+                                  <div style={{
+                                    width: '16px',
+                                    height: '16px',
+                                    borderRadius: '50%',
+                                    backgroundColor: '#000000',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    padding: 0,
+                                    margin: 0,
+                                    boxSizing: 'border-box',
+                                    border: '0.5px solid #000000'
+                                  }}>
+                                    <ClockIcon style={{ fontSize: '10px', color: 'white', stroke: 'none', strokeWidth: 0, fill: 'white' }} />
+                                  </div>
                                 </FlexItem>
                                 <FlexItem>
-                                  <span style={{ fontSize: '14px' }}>{vmStatusCounts.Running} Running</span>
+                                  <span style={{ fontSize: '14px', color: '#0066CC' }}>{vmStatusCounts.Stopped} Stopped</span>
                                 </FlexItem>
                               </Flex>
-                            </FlexItem>
-                            <FlexItem>
+                            </GridItem>
+                            {/* Running - Bottom Left */}
+                            <GridItem span={6}>
                               <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
                                 <FlexItem>
-                                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--pf-t--global--icon--color--regular)' }} />
+                                  <div style={{
+                                    width: '16px',
+                                    height: '16px',
+                                    borderRadius: '50%',
+                                    backgroundColor: '#000000',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    padding: 0,
+                                    margin: 0,
+                                    boxSizing: 'border-box',
+                                    border: '0.5px solid #000000'
+                                  }}>
+                                    <SyncAltIcon style={{ fontSize: '10px', color: 'white', stroke: 'none', strokeWidth: 0, fill: 'white' }} />
+                                  </div>
                                 </FlexItem>
                                 <FlexItem>
-                                  <span style={{ fontSize: '14px' }}>{vmStatusCounts.Stopped} Stopped</span>
+                                  <span style={{ fontSize: '14px', color: '#0066CC' }}>{vmStatusCounts.Running} Running</span>
                                 </FlexItem>
                               </Flex>
-                            </FlexItem>
-                            <FlexItem>
+                            </GridItem>
+                            {/* Paused - Bottom Right */}
+                            <GridItem span={6}>
                               <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
                                 <FlexItem>
-                                  <div style={{ 
-                                    width: '8px', 
-                                    height: '8px', 
-                                    transform: 'rotate(45deg)', 
-                                    backgroundColor: 'var(--pf-t--global--icon--color--regular)',
-                                    border: 'none'
-                                  }} />
+                                  <div style={{
+                                    width: '16px',
+                                    height: '16px',
+                                    borderRadius: '50%',
+                                    backgroundColor: '#000000',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    padding: 0,
+                                    margin: 0,
+                                    boxSizing: 'border-box',
+                                    border: '0.5px solid #000000'
+                                  }}>
+                                    <PauseCircleIcon style={{ fontSize: '10px', color: 'white', stroke: 'none', strokeWidth: 0, fill: 'white' }} />
+                                  </div>
                                 </FlexItem>
                                 <FlexItem>
-                                  <span style={{ fontSize: '14px' }}>
-                                    {filteredVMs.length - vmStatusCounts.Error - vmStatusCounts.Running - vmStatusCounts.Stopped} Other
-                                  </span>
+                                  <span style={{ fontSize: '14px', color: '#0066CC' }}>{vmStatusCounts.Paused} Paused</span>
                                 </FlexItem>
                               </Flex>
-                            </FlexItem>
-                          </Flex>
+                            </GridItem>
+                          </Grid>
                         </FlexItem>
                       </Flex>
                     </CardBody>
@@ -2892,7 +3064,9 @@ const VirtualMachines: React.FunctionComponent = () => {
                             onSelect={() => {}} // Don't close on selection
                             onOpenChange={(isOpen: boolean) => setIsClusterFilterOpen(isOpen)}
                             toggle={(toggleRef: React.Ref<MenuToggleElement>) => {
+                              // Enable cluster dropdown when "all-clusters" is selected, or when no tree selection is made
                               const isDisabled = (!!selectedClusterFromTree || !!selectedProjectFromTree) && selectedTreeNode !== 'all-clusters';
+                              const shouldBeEnabled = selectedTreeNode === 'all-clusters';
                               const toggle = (
                                 <MenuToggle
                                   ref={toggleRef}
@@ -2900,6 +3074,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                                   isExpanded={isClusterFilterOpen}
                                   variant="default"
                                   isDisabled={isDisabled}
+                                  className={shouldBeEnabled ? 'cluster-dropdown-enabled' : ''}
                                   style={{
                                     backgroundColor: (selectedClusterFromTree || selectedProjectFromTree || clusterFilter !== 'All') ? 'var(--pf-t--global--background--color--primary--hover)' : undefined
                                   }}
@@ -2997,7 +3172,6 @@ const VirtualMachines: React.FunctionComponent = () => {
                                 // Logic:
                                 // - If cluster is selected from tree: Project dropdown should be ENABLED
                                 // - If "all-clusters" is selected: Project dropdown should be ENABLED (multi-select mode)
-                                // - If cluster is selected from tree: Project dropdown should be ENABLED (multi-select mode)
                                 // - If project is selected from tree: Project dropdown should be DISABLED (same as cluster dropdown)
                                 // - If nothing selected from tree: Both dropdowns enabled
                                 const shouldDisableProject = !!selectedProjectFromTree;
@@ -3014,7 +3188,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                                     isExpanded={isProjectFilterOpen} 
                                     variant="default"
                                     isDisabled={!isProjectEnabled}
-                                    className={(selectedClusterFromTree || selectedTreeNode === 'all-clusters') && !selectedProjectFromTree ? 'project-dropdown-enabled' : ''}
+                                    className={((selectedClusterFromTree || selectedTreeNode === 'all-clusters') && !selectedProjectFromTree) ? 'project-dropdown-enabled' : ''}
                                     style={{
                                       backgroundColor: (selectedProjectFromTree || projectFilter !== 'All') ? 'var(--pf-t--global--background--color--primary--hover)' : undefined
                                     }}
@@ -3063,13 +3237,23 @@ const VirtualMachines: React.FunctionComponent = () => {
                               </DropdownItem>
                               {getAllNamespaces()
                                 .filter(ns => {
-                                  // If "all-clusters" is selected, show all projects
-                                  if (selectedTreeNode === 'all-clusters') {
-                                    return true;
-                                  }
                                   // If a cluster is selected from tree, only show projects in that cluster
                                   if (selectedClusterFromTree) {
                                     return ns.clusterId === getAllClusters().find(c => c.name === selectedClusterFromTree)?.id;
+                                  }
+                                  // If clusters are selected from dropdown, only show projects from those clusters
+                                  if (clusterFilter !== 'All' && Array.isArray(clusterFilter) && clusterFilter.length > 0) {
+                                    const selectedClusterIds = getAllClusters()
+                                      .filter(c => clusterFilter.includes(c.name))
+                                      .map(c => c.id);
+                                    return selectedClusterIds.includes(ns.clusterId);
+                                  } else if (clusterFilter !== 'All' && !Array.isArray(clusterFilter)) {
+                                    const selectedClusterId = getAllClusters().find(c => c.name === clusterFilter)?.id;
+                                    return ns.clusterId === selectedClusterId;
+                                  }
+                                  // If "all-clusters" is selected and no cluster filter, show all projects
+                                  if (selectedTreeNode === 'all-clusters') {
+                                    return true;
                                   }
                                   // Otherwise show all projects
                                   return true;
@@ -3261,30 +3445,42 @@ const VirtualMachines: React.FunctionComponent = () => {
               {(!selectedProjectFromTree && (selectedClusterFromTree || clusterForSelectedProject || (clusterFilter !== 'All' && (Array.isArray(clusterFilter) ? clusterFilter.length > 0 : true)) || (projectFilter !== 'All' && (Array.isArray(projectFilter) ? projectFilter.length > 0 : true)) || (statusFilter !== 'All' && (Array.isArray(statusFilter) ? statusFilter.length > 0 : true)))) && (
                 <div style={{ paddingTop: '12px', paddingBottom: '12px', paddingLeft: '0', paddingRight: '16px', backgroundColor: 'var(--pf-t--global--background--color--primary--default)' }}>
                   <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsMd' }} wrap="wrap" style={{ width: '100%' }}>
-                    {/* Cluster chip(s) - only show when cluster is selected from dropdown, not from tree selection */}
+                    {/* Cluster chip - single chip with all selected clusters, each with its own X, plus general X outside */}
                     {(clusterFilter !== 'All' && !selectedClusterFromTree && !selectedProjectFromTree && (Array.isArray(clusterFilter) ? clusterFilter.length > 0 : true)) && (
-                      <>
-                        {(Array.isArray(clusterFilter) ? clusterFilter : [clusterFilter]).map((cluster, index) => (
-                          <FlexItem key={index}>
-                            <div style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '8px',
-                              border: '1px solid var(--pf-t--global--border--color--default)',
-                              borderRadius: '4px',
-                              padding: '4px 8px',
-                              backgroundColor: 'var(--pf-t--global--background--color--primary--default)'
-                            }}>
-                              <span style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)', fontWeight: 400 }}>Cluster</span>
-                              <div style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                backgroundColor: '#E7F1FA',
-                                padding: '4px 8px',
-                                borderRadius: '4px',
-                                fontSize: '0.875rem'
-                              }}>
+                      <FlexItem>
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          border: '1px solid var(--pf-t--global--border--color--default)',
+                          borderRadius: '4px',
+                          padding: '4px 8px',
+                          backgroundColor: 'var(--pf-t--global--background--color--primary--default)'
+                        }}>
+                          <span style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)', fontWeight: 400 }}>Cluster</span>
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            backgroundColor: 'white',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '0.875rem',
+                            flexWrap: 'wrap',
+                            maxWidth: '400px'
+                          }}>
+                            {(Array.isArray(clusterFilter) ? clusterFilter : [clusterFilter]).map((cluster, index) => (
+                              <div
+                                key={index}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  backgroundColor: '#D0E7F5',
+                                  padding: '2px 6px',
+                                  borderRadius: '3px'
+                                }}
+                              >
                                 <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
                                   {cluster}
                                 </span>
@@ -3298,16 +3494,24 @@ const VirtualMachines: React.FunctionComponent = () => {
                                       setClusterFilter('All');
                                     }
                                   }}
-                                  aria-label="Remove cluster filter"
+                                  aria-label={`Remove ${cluster} filter`}
                                   style={{ padding: '0', minWidth: 'auto', height: 'auto' }}
                                 >
                                   <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
                                 </Button>
                               </div>
-                            </div>
-                          </FlexItem>
-                        ))}
-                      </>
+                            ))}
+                          </div>
+                          <Button
+                            variant="plain"
+                            onClick={() => setClusterFilter('All')}
+                            aria-label="Remove all cluster filters"
+                            style={{ padding: '0', minWidth: 'auto', height: 'auto', marginLeft: '4px' }}
+                          >
+                            <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                          </Button>
+                        </div>
+                      </FlexItem>
                     )}
                     {/* Project chip - single chip with all selected projects, each with its own X, plus general X outside */}
                     {(!selectedProjectFromTree && projectFilter !== 'All' && (Array.isArray(projectFilter) ? projectFilter.length > 0 : true)) && (
@@ -3461,7 +3665,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                           fontWeight: 600,
                           cursor: 'pointer',
                           userSelect: 'none',
-                          width: '12%',
+                          width: '20%',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -3573,7 +3777,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                           fontWeight: 600,
                           cursor: 'pointer',
                           userSelect: 'none',
-                          width: '12%',
+                          width: '8%',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -3601,7 +3805,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                           fontWeight: 600,
                           cursor: 'pointer',
                           userSelect: 'none',
-                          width: '12%',
+                          width: '8%',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -3657,7 +3861,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                           fontWeight: 600,
                           cursor: 'pointer',
                           userSelect: 'none',
-                          width: '12%',
+                          width: '8%',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -3683,18 +3887,98 @@ const VirtualMachines: React.FunctionComponent = () => {
                   </thead>
                   <tbody>
                     {paginatedVMs.map(vm => {
-                      // Determine status icon and color
+                      // Determine status icon and color - match the card pattern
                       const getStatusIcon = () => {
                         if (vm.status === 'Error' || vm.status === 'Failing') {
-                          return <ExclamationTriangleIcon style={{ color: 'var(--pf-t--global--icon--color--status--warning--default)' }} />;
+                          return (
+                            <div style={{
+                              width: '16px',
+                              height: '16px',
+                              borderRadius: '50%',
+                              backgroundColor: '#C9190B',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: 0,
+                              margin: 0,
+                              boxSizing: 'border-box',
+                              border: '0.5px solid #C9190B'
+                            }}>
+                              <span style={{ fontSize: '12px', color: 'white', fontWeight: 'bold', lineHeight: '1' }}>!</span>
+                            </div>
+                          );
                         } else if (vm.status === 'Stopped' || vm.status === 'Stopping' || vm.status === 'Terminating') {
-                          return <ClockIcon style={{ color: 'var(--pf-t--global--icon--color--regular)' }} />;
+                          return (
+                            <div style={{
+                              width: '16px',
+                              height: '16px',
+                              borderRadius: '50%',
+                              backgroundColor: '#000000',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: 0,
+                              margin: 0,
+                              boxSizing: 'border-box',
+                              border: '0.5px solid #000000'
+                            }}>
+                              <ClockIcon style={{ fontSize: '10px', color: 'white', stroke: 'none', strokeWidth: 0, fill: 'white' }} />
+                            </div>
+                          );
                         } else if (vm.status === 'Running') {
-                          return <SyncAltIcon style={{ color: 'var(--pf-t--global--icon--color--status--success--default)' }} />;
-                        } else if (vm.status === 'Starting' || vm.status === 'Provisioning' || vm.status === 'Migrating' || vm.status === 'WaitingForVolumeBinding') {
-                          return <SyncAltIcon style={{ color: 'var(--pf-t--global--icon--color--status--info--default)' }} />;
+                          return (
+                            <div style={{
+                              width: '16px',
+                              height: '16px',
+                              borderRadius: '50%',
+                              backgroundColor: '#000000',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: 0,
+                              margin: 0,
+                              boxSizing: 'border-box',
+                              border: '0.5px solid #000000'
+                            }}>
+                              <SyncAltIcon style={{ fontSize: '10px', color: 'white', stroke: 'none', strokeWidth: 0, fill: 'white' }} />
+                            </div>
+                          );
                         } else if (vm.status === 'Paused') {
-                          return <ClockIcon style={{ color: 'var(--pf-t--global--icon--color--regular)' }} />;
+                          return (
+                            <div style={{
+                              width: '16px',
+                              height: '16px',
+                              borderRadius: '50%',
+                              backgroundColor: '#000000',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: 0,
+                              margin: 0,
+                              boxSizing: 'border-box',
+                              border: '0.5px solid #000000'
+                            }}>
+                              <PauseCircleIcon style={{ fontSize: '10px', color: 'white', stroke: 'none', strokeWidth: 0, fill: 'white' }} />
+                            </div>
+                          );
+                        } else if (vm.status === 'Starting' || vm.status === 'Provisioning' || vm.status === 'Migrating' || vm.status === 'WaitingForVolumeBinding') {
+                          return (
+                            <div style={{
+                              width: '16px',
+                              height: '16px',
+                              borderRadius: '50%',
+                              backgroundColor: '#000000',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: 0,
+                              margin: 0,
+                              boxSizing: 'border-box',
+                              border: '0.5px solid #000000'
+                            }}>
+                              <SyncAltIcon style={{ fontSize: '10px', color: 'white', stroke: 'none', strokeWidth: 0, fill: 'white' }} />
+                            </div>
+                          );
                         }
                         // Unknown status - no icon or default icon
                         return null;
@@ -3723,7 +4007,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                               aria-label={`Select ${vm.name}`}
                             />
                           </td>
-                          <td style={{ padding: '12px', width: '12%' }}>
+                          <td style={{ padding: '12px', width: '20%' }}>
                             <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
                               <FlexItem>
                                 <Label color="blue" isCompact>VM</Label>
@@ -3817,7 +4101,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                               </FlexItem>
                             </Flex>
                           </td>
-                          <td style={{ padding: '12px', width: '12%' }}>
+                          <td style={{ padding: '12px', width: '8%' }}>
                             {vm.conditions ? (
                               <Tooltip content={vm.conditions}>
                                 <div style={{
@@ -3833,7 +4117,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                               ''
                             )}
                           </td>
-                          <td style={{ padding: '12px', width: '12%' }}>
+                          <td style={{ padding: '12px', width: '8%' }}>
                             {vm.node ? (
                               <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
                                 <FlexItem>
@@ -3875,7 +4159,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                               '-'
                             )}
                           </td>
-                          <td style={{ padding: '12px', width: '12%' }}>
+                          <td style={{ padding: '12px', width: '8%' }}>
                             {vm.storageClass ? (
                               <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
                                 <FlexItem>
@@ -3961,7 +4245,6 @@ const VirtualMachines: React.FunctionComponent = () => {
         width="60%"
         isOpen={isAdvancedSearchOpen}
         onClose={() => setIsAdvancedSearchOpen(false)}
-        tabIndex={0}
         aria-label="Advanced search"
       >
         {/* Sticky Header */}
@@ -4006,84 +4289,394 @@ const VirtualMachines: React.FunctionComponent = () => {
               isExpanded={isDetailsExpanded}
               isIndented
             >
-              <FormGroup label="Name" fieldId="adv-search-name">
-                <TextInput
-                  id="adv-search-name"
-                  value={advancedSearchName}
-                  onChange={(_event, value) => setAdvancedSearchName(value)}
-                  placeholder="Name"
-                />
-              </FormGroup>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ minWidth: '150px', flexShrink: 0 }}>
+                  <label htmlFor="adv-search-name" style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)' }}>Name</label>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <TextInput
+                    id="adv-search-name"
+                    value={advancedSearchName}
+                    onChange={(_event, value) => setAdvancedSearchName(value)}
+                    placeholder="Name"
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              </div>
 
-              <FormGroup label="Cluster" fieldId="adv-search-cluster">
-                <Dropdown
-                  isOpen={isAdvSearchClusterOpen}
-                  onSelect={() => setIsAdvSearchClusterOpen(false)}
-                  onOpenChange={(isOpen: boolean) => setIsAdvSearchClusterOpen(isOpen)}
-                  toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-                    <MenuToggle
-                      ref={toggleRef}
-                      onClick={() => setIsAdvSearchClusterOpen(!isAdvSearchClusterOpen)}
-                      isExpanded={isAdvSearchClusterOpen}
-                      style={{ width: '100%' }}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ minWidth: '150px', flexShrink: 0 }}>
+                  <label htmlFor="adv-search-cluster" style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)' }}>Cluster</label>
+                </div>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      alignItems: 'center',
+                      gap: '4px',
+                      minHeight: '36px',
+                      padding: '4px 8px',
+                      border: '1px solid var(--pf-t--global--border--color--default)',
+                      borderRadius: '4px',
+                      backgroundColor: 'var(--pf-t--global--background--color--primary--default)',
+                      cursor: 'text',
+                    }}
+                    onClick={() => setIsAdvSearchClusterOpen(true)}
+                  >
+                    {advancedSearchCluster.length > 0 ? (
+                      <>
+                        {advancedSearchCluster.map((clusterName, index) => (
+                          <Label
+                            key={index}
+                            onClose={() => {
+                              setAdvancedSearchCluster(prev => prev.filter(c => c !== clusterName));
+                            }}
+                            style={{ margin: 0 }}
+                          >
+                            {clusterName}
+                          </Label>
+                        ))}
+                        <input
+                          id="adv-search-cluster"
+                          value={clusterSearchValue}
+                          onChange={(e) => {
+                            setClusterSearchValue(e.target.value);
+                            if (!isAdvSearchClusterOpen) {
+                              setIsAdvSearchClusterOpen(true);
+                            }
+                          }}
+                          onFocus={() => {
+                            setIsAdvSearchClusterOpen(true);
+                          }}
+                          placeholder="Select cluster"
+                          style={{
+                            border: 'none',
+                            outline: 'none',
+                            flex: 1,
+                            minWidth: '120px',
+                            backgroundColor: 'transparent',
+                            fontSize: '0.875rem',
+                          }}
+                        />
+                      </>
+                    ) : (
+                      <input
+                        id="adv-search-cluster"
+                        value={clusterSearchValue}
+                        onChange={(e) => {
+                          setClusterSearchValue(e.target.value);
+                          if (!isAdvSearchClusterOpen) {
+                            setIsAdvSearchClusterOpen(true);
+                          }
+                        }}
+                        onFocus={() => {
+                          setIsAdvSearchClusterOpen(true);
+                          setClusterSearchValue('');
+                        }}
+                        placeholder="Select cluster"
+                        style={{
+                          border: 'none',
+                          outline: 'none',
+                          flex: 1,
+                          width: '100%',
+                          backgroundColor: 'transparent',
+                          fontSize: '0.875rem',
+                        }}
+                      />
+                    )}
+                    {advancedSearchCluster.length > 0 && (
+                      <Button
+                        variant="plain"
+                        aria-label="Clear all"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAdvancedSearchCluster([]);
+                          setClusterSearchValue('');
+                        }}
+                        style={{ padding: '4px', minWidth: 'auto' }}
+                      >
+                        <TimesIcon />
+                      </Button>
+                    )}
+                    <Button
+                      variant="plain"
+                      aria-label="Toggle dropdown"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsAdvSearchClusterOpen(!isAdvSearchClusterOpen);
+                      }}
+                      style={{ padding: '4px', minWidth: 'auto' }}
                     >
-                      {advancedSearchCluster === 'all' ? 'All clusters' : advancedSearchCluster}
-                    </MenuToggle>
-                  )}
-                >
-                  <DropdownList>
-                    <DropdownItem key="all" onClick={() => { setAdvancedSearchCluster('all'); setIsAdvSearchClusterOpen(false); }}>
-                      All clusters
-                    </DropdownItem>
-                    {getAllClusters().map(cluster => (
-                      <DropdownItem key={cluster.id} onClick={() => { setAdvancedSearchCluster(cluster.name); setIsAdvSearchClusterOpen(false); }}>
-                        {cluster.name}
-                      </DropdownItem>
-                    ))}
-                  </DropdownList>
-                </Dropdown>
-              </FormGroup>
-
-              <FormGroup label="Project" fieldId="adv-search-project">
-                <Dropdown
-                  isOpen={isAdvSearchProjectOpen}
-                  onSelect={() => setIsAdvSearchProjectOpen(false)}
-                  onOpenChange={(isOpen: boolean) => setIsAdvSearchProjectOpen(isOpen)}
-                  toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-                    <MenuToggle
-                      ref={toggleRef}
-                      onClick={() => setIsAdvSearchProjectOpen(!isAdvSearchProjectOpen)}
-                      isExpanded={isAdvSearchProjectOpen}
-                      style={{ width: '100%' }}
+                      <svg fill="currentColor" height="1em" width="1em" viewBox="0 0 320 512" style={{ fontSize: '0.75rem' }}>
+                        <path d="M137.4 374.6c12.5 12.5 32.8 12.5 45.3 0l128-128c9.2-9.2 11.9-22.9 6.9-34.9s-16.6-19.8-29.6-19.8L32 192c-12.9 0-24.6 7.8-29.6 19.8s-2.2 25.7 6.9 34.9l128 128z"/>
+                      </svg>
+                    </Button>
+                  </div>
+                  {isAdvSearchClusterOpen && (
+                    <div 
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        marginTop: '4px',
+                        zIndex: 1000,
+                        maxHeight: '300px',
+                        overflowY: 'auto',
+                        backgroundColor: 'var(--pf-t--global--background--color--primary--default)',
+                        border: '1px solid var(--pf-t--global--border--color--default)',
+                        borderRadius: '4px',
+                        boxShadow: 'var(--pf-t--global--box-shadow--md)',
+                      }}
+                      onMouseDown={(e) => e.preventDefault()}
                     >
-                      {advancedSearchProject === 'all' ? 'All projects' : advancedSearchProject}
-                    </MenuToggle>
+                      <DropdownList>
+                        {(() => {
+                          const filteredClusters = getAllClusters().filter(cluster => 
+                            cluster.name.toLowerCase().includes(clusterSearchValue.toLowerCase())
+                          );
+                          if (filteredClusters.length === 0 && clusterSearchValue) {
+                            return (
+                              <div style={{ 
+                                padding: '16px',
+                                textAlign: 'center',
+                                color: 'var(--pf-t--global--text--color--subtle)',
+                                fontSize: '0.875rem'
+                              }}>
+                                No results found for "{clusterSearchValue}"
+                              </div>
+                            );
+                          }
+                          return filteredClusters.map(cluster => {
+                            const isSelected = advancedSearchCluster.includes(cluster.name);
+                            return (
+                              <DropdownItem 
+                                key={cluster.id} 
+                                onClick={(e) => {
+                                  e?.stopPropagation();
+                                  if (isSelected) {
+                                    setAdvancedSearchCluster(prev => prev.filter(c => c !== cluster.name));
+                                  } else {
+                                    setAdvancedSearchCluster(prev => [...prev, cluster.name]);
+                                  }
+                                  setClusterSearchValue('');
+                                }}
+                                style={{ padding: '12px 16px', minHeight: '40px', width: '100%', cursor: 'pointer' }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                  <span>{cluster.name}</span>
+                                  {isSelected && (
+                                    <CheckIcon style={{ color: 'var(--pf-t--global--color--brand--default)' }} />
+                                  )}
+                                </div>
+                              </DropdownItem>
+                            );
+                          });
+                        })()}
+                      </DropdownList>
+                    </div>
                   )}
-                >
-                  <DropdownList>
-                    <DropdownItem key="all" onClick={() => { setAdvancedSearchProject('all'); setIsAdvSearchProjectOpen(false); }}>
-                      All projects
-                    </DropdownItem>
-                    {getAllNamespaces().map(project => (
-                      <DropdownItem key={project.id} onClick={() => { setAdvancedSearchProject(project.name); setIsAdvSearchProjectOpen(false); }}>
-                        {project.name}
-                      </DropdownItem>
-                    ))}
-                  </DropdownList>
-                </Dropdown>
-              </FormGroup>
+                </div>
+              </div>
 
-              <FormGroup label="Description" fieldId="adv-search-description">
-                <TextInput
-                  id="adv-search-description"
-                  value={advancedSearchDescription}
-                  onChange={(_event, value) => setAdvancedSearchDescription(value)}
-                  placeholder="Description"
-                />
-              </FormGroup>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ minWidth: '150px', flexShrink: 0 }}>
+                  <label htmlFor="adv-search-project" style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)' }}>Project</label>
+                </div>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      alignItems: 'center',
+                      gap: '4px',
+                      minHeight: '36px',
+                      padding: '4px 8px',
+                      border: '1px solid var(--pf-t--global--border--color--default)',
+                      borderRadius: '4px',
+                      backgroundColor: 'var(--pf-t--global--background--color--primary--default)',
+                      cursor: 'text',
+                    }}
+                    onClick={() => setIsAdvSearchProjectOpen(true)}
+                  >
+                    {advancedSearchProject.length > 0 ? (
+                      <>
+                        {advancedSearchProject.map((projectName, index) => (
+                          <Label
+                            key={index}
+                            onClose={() => {
+                              setAdvancedSearchProject(prev => prev.filter(p => p !== projectName));
+                            }}
+                            style={{ margin: 0 }}
+                          >
+                            {projectName}
+                          </Label>
+                        ))}
+                        <input
+                          id="adv-search-project"
+                          value={projectSearchValue}
+                          onChange={(e) => {
+                            setProjectSearchValue(e.target.value);
+                            if (!isAdvSearchProjectOpen) {
+                              setIsAdvSearchProjectOpen(true);
+                            }
+                          }}
+                          onFocus={() => {
+                            setIsAdvSearchProjectOpen(true);
+                          }}
+                          placeholder="Select project"
+                          style={{
+                            border: 'none',
+                            outline: 'none',
+                            flex: 1,
+                            minWidth: '120px',
+                            backgroundColor: 'transparent',
+                            fontSize: '0.875rem',
+                          }}
+                        />
+                      </>
+                    ) : (
+                      <input
+                        id="adv-search-project"
+                        value={projectSearchValue}
+                        onChange={(e) => {
+                          setProjectSearchValue(e.target.value);
+                          if (!isAdvSearchProjectOpen) {
+                            setIsAdvSearchProjectOpen(true);
+                          }
+                        }}
+                        onFocus={() => {
+                          setIsAdvSearchProjectOpen(true);
+                          setProjectSearchValue('');
+                        }}
+                        placeholder="Select project"
+                        style={{
+                          border: 'none',
+                          outline: 'none',
+                          flex: 1,
+                          width: '100%',
+                          backgroundColor: 'transparent',
+                          fontSize: '0.875rem',
+                        }}
+                      />
+                    )}
+                    {advancedSearchProject.length > 0 && (
+                      <Button
+                        variant="plain"
+                        aria-label="Clear all"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAdvancedSearchProject([]);
+                          setProjectSearchValue('');
+                        }}
+                        style={{ padding: '4px', minWidth: 'auto' }}
+                      >
+                        <TimesIcon />
+                      </Button>
+                    )}
+                    <Button
+                      variant="plain"
+                      aria-label="Toggle dropdown"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsAdvSearchProjectOpen(!isAdvSearchProjectOpen);
+                      }}
+                      style={{ padding: '4px', minWidth: 'auto' }}
+                    >
+                      <svg fill="currentColor" height="1em" width="1em" viewBox="0 0 320 512" style={{ fontSize: '0.75rem' }}>
+                        <path d="M137.4 374.6c12.5 12.5 32.8 12.5 45.3 0l128-128c9.2-9.2 11.9-22.9 6.9-34.9s-16.6-19.8-29.6-19.8L32 192c-12.9 0-24.6 7.8-29.6 19.8s-2.2 25.7 6.9 34.9l128 128z"/>
+                      </svg>
+                    </Button>
+                  </div>
+                  {isAdvSearchProjectOpen && (
+                    <div 
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        marginTop: '4px',
+                        zIndex: 1000,
+                        maxHeight: '300px',
+                        overflowY: 'auto',
+                        backgroundColor: 'var(--pf-t--global--background--color--primary--default)',
+                        border: '1px solid var(--pf-t--global--border--color--default)',
+                        borderRadius: '4px',
+                        boxShadow: 'var(--pf-t--global--box-shadow--md)',
+                      }}
+                      onMouseDown={(e) => e.preventDefault()}
+                    >
+                      <DropdownList>
+                        {(() => {
+                          const filteredProjects = getAllNamespaces().filter(project => 
+                            project.name.toLowerCase().includes(projectSearchValue.toLowerCase())
+                          );
+                          if (filteredProjects.length === 0 && projectSearchValue) {
+                            return (
+                              <div style={{ 
+                                padding: '16px',
+                                textAlign: 'center',
+                                color: 'var(--pf-t--global--text--color--subtle)',
+                                fontSize: '0.875rem'
+                              }}>
+                                No results found for "{projectSearchValue}"
+                              </div>
+                            );
+                          }
+                          return filteredProjects.map(project => {
+                            const isSelected = advancedSearchProject.includes(project.name);
+                            return (
+                              <DropdownItem 
+                                key={project.id} 
+                                onClick={(e) => {
+                                  e?.stopPropagation();
+                                  if (isSelected) {
+                                    setAdvancedSearchProject(prev => prev.filter(p => p !== project.name));
+                                  } else {
+                                    setAdvancedSearchProject(prev => [...prev, project.name]);
+                                  }
+                                  setProjectSearchValue('');
+                                }}
+                                style={{ padding: '12px 16px', minHeight: '40px', width: '100%', cursor: 'pointer' }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                  <span>{project.name}</span>
+                                  {isSelected && (
+                                    <CheckIcon style={{ color: 'var(--pf-t--global--color--brand--default)' }} />
+                                  )}
+                                </div>
+                              </DropdownItem>
+                            );
+                          });
+                        })()}
+                      </DropdownList>
+                    </div>
+                  )}
+                </div>
+              </div>
 
-              <FormGroup label="Status" fieldId="adv-search-status">
-                <Dropdown
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ minWidth: '150px', flexShrink: 0 }}>
+                  <label htmlFor="adv-search-description" style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)' }}>Description</label>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <TextInput
+                    id="adv-search-description"
+                    value={advancedSearchDescription}
+                    onChange={(_event, value) => setAdvancedSearchDescription(value)}
+                    placeholder="Description"
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ minWidth: '150px', flexShrink: 0 }}>
+                  <label htmlFor="adv-search-status" style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)' }}>Status</label>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Dropdown
                   isOpen={isAdvSearchStatusOpen}
                   onSelect={() => setIsAdvSearchStatusOpen(false)}
                   onOpenChange={(isOpen: boolean) => setIsAdvSearchStatusOpen(isOpen)}
@@ -4106,10 +4699,15 @@ const VirtualMachines: React.FunctionComponent = () => {
                     ))}
                   </DropdownList>
                 </Dropdown>
-              </FormGroup>
+                </div>
+              </div>
 
-              <FormGroup label="Operating system" fieldId="adv-search-os">
-                <Dropdown
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ minWidth: '150px', flexShrink: 0 }}>
+                  <label htmlFor="adv-search-os" style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)' }}>Operating system</label>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Dropdown
                   isOpen={isAdvSearchOSOpen}
                   onSelect={() => setIsAdvSearchOSOpen(false)}
                   onOpenChange={(isOpen: boolean) => setIsAdvSearchOSOpen(isOpen)}
@@ -4132,10 +4730,15 @@ const VirtualMachines: React.FunctionComponent = () => {
                     ))}
                   </DropdownList>
                 </Dropdown>
-              </FormGroup>
+                </div>
+              </div>
 
-              <FormGroup label="vCPU" fieldId="adv-search-vcpu">
-                <Split hasGutter>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ minWidth: '150px', flexShrink: 0 }}>
+                  <label htmlFor="adv-search-vcpu" style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)' }}>vCPU</label>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Split hasGutter>
                   <SplitItem>
                     <Dropdown
                       isOpen={isAdvSearchVCPUOpOpen}
@@ -4169,10 +4772,15 @@ const VirtualMachines: React.FunctionComponent = () => {
                     />
                   </SplitItem>
                 </Split>
-              </FormGroup>
+                </div>
+              </div>
 
-              <FormGroup label="Memory" fieldId="adv-search-memory">
-                <Split hasGutter>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ minWidth: '150px', flexShrink: 0 }}>
+                  <label htmlFor="adv-search-memory" style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)' }}>Memory</label>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Split hasGutter>
                   <SplitItem>
                     <Dropdown
                       isOpen={isAdvSearchMemoryOpOpen}
@@ -4228,71 +4836,106 @@ const VirtualMachines: React.FunctionComponent = () => {
                     </Dropdown>
                   </SplitItem>
                 </Split>
-              </FormGroup>
+                </div>
+              </div>
 
-              <FormGroup label="Storage class" fieldId="adv-search-storage">
-                <Dropdown
-                  isOpen={isAdvSearchStorageOpen}
-                  onSelect={() => setIsAdvSearchStorageOpen(false)}
-                  onOpenChange={(isOpen: boolean) => setIsAdvSearchStorageOpen(isOpen)}
-                  toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-                    <MenuToggle
-                      ref={toggleRef}
-                      onClick={() => setIsAdvSearchStorageOpen(!isAdvSearchStorageOpen)}
-                      isExpanded={isAdvSearchStorageOpen}
-                      style={{ width: '100%' }}
-                    >
-                      {advancedSearchStorageClass || 'Select storage class'}
-                    </MenuToggle>
-                  )}
-                >
-                  <DropdownList>
-                    <DropdownItem onClick={() => { setAdvancedSearchStorageClass('standard'); setIsAdvSearchStorageOpen(false); }}>standard</DropdownItem>
-                    <DropdownItem onClick={() => { setAdvancedSearchStorageClass('premium'); setIsAdvSearchStorageOpen(false); }}>premium</DropdownItem>
-                  </DropdownList>
-                </Dropdown>
-              </FormGroup>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ minWidth: '150px', flexShrink: 0 }}>
+                  <label htmlFor="adv-search-storage" style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)' }}>Storage class</label>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Dropdown
+                    isOpen={isAdvSearchStorageOpen}
+                    onSelect={() => setIsAdvSearchStorageOpen(false)}
+                    onOpenChange={(isOpen: boolean) => setIsAdvSearchStorageOpen(isOpen)}
+                    toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+                      <MenuToggle
+                        ref={toggleRef}
+                        onClick={() => setIsAdvSearchStorageOpen(!isAdvSearchStorageOpen)}
+                        isExpanded={isAdvSearchStorageOpen}
+                        style={{ width: '100%' }}
+                      >
+                        {advancedSearchStorageClass || 'Select storage class'}
+                      </MenuToggle>
+                    )}
+                  >
+                    <DropdownList>
+                      <DropdownItem onClick={() => { setAdvancedSearchStorageClass('standard'); setIsAdvSearchStorageOpen(false); }}>standard</DropdownItem>
+                      <DropdownItem onClick={() => { setAdvancedSearchStorageClass('premium'); setIsAdvSearchStorageOpen(false); }}>premium</DropdownItem>
+                    </DropdownList>
+                  </Dropdown>
+                </div>
+              </div>
 
-              <FormGroup label="Hardware devices" fieldId="adv-search-hardware">
-                <Checkbox
-                  id="adv-search-gpu"
-                  label="GPU devices"
-                  isChecked={advancedSearchGPU}
-                  onChange={(_event, checked) => setAdvancedSearchGPU(checked)}
-                  style={{ marginBottom: '8px' }}
-                />
-                <Checkbox
-                  id="adv-search-host-devices"
-                  label="Host devices"
-                  isChecked={advancedSearchHostDevices}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ minWidth: '150px', flexShrink: 0 }}>
+                  <label htmlFor="adv-search-hardware" style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)' }}>Hardware devices</label>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Checkbox
+                    id="adv-search-gpu"
+                    label="GPU devices"
+                    isChecked={advancedSearchGPU}
+                    onChange={(_event, checked) => setAdvancedSearchGPU(checked)}
+                    style={{ marginBottom: '8px' }}
+                  />
+                  <Checkbox
+                    id="adv-search-host-devices"
+                    label="Host devices"
+                    isChecked={advancedSearchHostDevices}
                   onChange={(_event, checked) => setAdvancedSearchHostDevices(checked)}
                 />
-              </FormGroup>
+                </div>
+              </div>
 
-              <FormGroup label="Date created" fieldId="adv-search-date">
-                <Dropdown
-                  isOpen={isAdvSearchDateOpen}
-                  onSelect={() => setIsAdvSearchDateOpen(false)}
-                  onOpenChange={(isOpen: boolean) => setIsAdvSearchDateOpen(isOpen)}
-                  toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-                    <MenuToggle
-                      ref={toggleRef}
-                      onClick={() => setIsAdvSearchDateOpen(!isAdvSearchDateOpen)}
-                      isExpanded={isAdvSearchDateOpen}
-                      style={{ width: '100%' }}
-                    >
-                      {advancedSearchDateCreated === 'any' ? 'Any time' : advancedSearchDateCreated}
-                    </MenuToggle>
-                  )}
-                >
-                  <DropdownList>
-                    <DropdownItem onClick={() => { setAdvancedSearchDateCreated('any'); setIsAdvSearchDateOpen(false); }}>Any time</DropdownItem>
-                    <DropdownItem onClick={() => { setAdvancedSearchDateCreated('today'); setIsAdvSearchDateOpen(false); }}>Today</DropdownItem>
-                    <DropdownItem onClick={() => { setAdvancedSearchDateCreated('week'); setIsAdvSearchDateOpen(false); }}>Last 7 days</DropdownItem>
-                    <DropdownItem onClick={() => { setAdvancedSearchDateCreated('month'); setIsAdvSearchDateOpen(false); }}>Last 30 days</DropdownItem>
-                  </DropdownList>
-                </Dropdown>
-              </FormGroup>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ minWidth: '150px', flexShrink: 0 }}>
+                  <label htmlFor="adv-search-date" style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)' }}>Date created</label>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Dropdown
+                    isOpen={isAdvSearchDateOpen}
+                    onSelect={() => setIsAdvSearchDateOpen(false)}
+                    onOpenChange={(isOpen: boolean) => setIsAdvSearchDateOpen(isOpen)}
+                    toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+                      <MenuToggle
+                        ref={toggleRef}
+                        onClick={() => setIsAdvSearchDateOpen(!isAdvSearchDateOpen)}
+                        isExpanded={isAdvSearchDateOpen}
+                        style={{ width: '100%' }}
+                      >
+                        {advancedSearchDateCreated === 'any' ? 'Any time' : advancedSearchDateCreated}
+                      </MenuToggle>
+                    )}
+                  >
+                    <DropdownList>
+                      <DropdownItem onClick={() => { setAdvancedSearchDateCreated('any'); setIsAdvSearchDateOpen(false); }}>Any time</DropdownItem>
+                      <DropdownItem onClick={() => { setAdvancedSearchDateCreated('today'); setIsAdvSearchDateOpen(false); }}>Today</DropdownItem>
+                      <DropdownItem onClick={() => { setAdvancedSearchDateCreated('week'); setIsAdvSearchDateOpen(false); }}>Last 7 days</DropdownItem>
+                      <DropdownItem onClick={() => { setAdvancedSearchDateCreated('month'); setIsAdvSearchDateOpen(false); }}>Last 30 days</DropdownItem>
+                    </DropdownList>
+                  </Dropdown>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ minWidth: '150px', flexShrink: 0 }}>
+                  <label htmlFor="adv-search-labels" style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)' }}>Labels</label>
+                </div>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <TextInput
+                    id="adv-search-labels"
+                    value=""
+                    placeholder=""
+                    style={{ flex: 1 }}
+                  />
+                  <Button variant="plain" aria-label="Add label" style={{ padding: '4px' }}>
+                    <svg fill="currentColor" height="1em" width="1em" viewBox="0 0 448 512" style={{ fontSize: '1rem' }}>
+                      <path d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32V224H48c-17.7 0-32 14.3-32 32s14.3 32 32 32H192V432c0 17.7 14.3 32 32 32s32-14.3 32-32V288H400c17.7 0 32-14.3 32-32s-14.3-32-32-32H256V80z"/>
+                    </svg>
+                  </Button>
+                </div>
+              </div>
             </ExpandableSection>
 
             {/* Divider between sections */}
@@ -4305,22 +4948,34 @@ const VirtualMachines: React.FunctionComponent = () => {
               isExpanded={isNetworkExpanded}
               isIndented
             >
-              <FormGroup label="IP address" fieldId="adv-search-ip">
-                <TextInput
-                  id="adv-search-ip"
-                  value={advancedSearchIPAddress}
-                  onChange={(_event, value) => setAdvancedSearchIPAddress(value)}
-                  placeholder="IP address"
-                />
-              </FormGroup>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ minWidth: '150px', flexShrink: 0 }}>
+                  <label htmlFor="adv-search-ip" style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)' }}>IP address</label>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <TextInput
+                    id="adv-search-ip"
+                    value={advancedSearchIPAddress}
+                    onChange={(_event, value) => setAdvancedSearchIPAddress(value)}
+                    placeholder="IP address"
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              </div>
 
-              <FormGroup label="Network Attachment Definitions" fieldId="adv-search-nad">
-                <TextInput
-                  id="adv-search-nad"
-                  value=""
-                  placeholder="Find by name"
-                />
-              </FormGroup>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ minWidth: '150px', flexShrink: 0 }}>
+                  <label htmlFor="adv-search-nad" style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)' }}>Network Attachment Definitions</label>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <TextInput
+                    id="adv-search-nad"
+                    value=""
+                    placeholder="Find by name"
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              </div>
             </ExpandableSection>
           </Form>
 
@@ -4378,7 +5033,6 @@ const VirtualMachines: React.FunctionComponent = () => {
           setSaveSearchDescription('');
         }}
         title="Save search"
-        tabIndex={0}
         aria-label="Save search"
       >
         <div style={{ padding: '24px' }}>
