@@ -81,7 +81,6 @@ import {
   LongArrowAltDownIcon,
   PlayIcon,
   StopIcon,
-  PauseIcon,
   SyncAltIcon as RefreshIcon,
   ExternalLinkAltIcon,
   CopyIcon,
