@@ -262,7 +262,7 @@ const mockClusterSets = generateMockData();
 const VirtualMachines: React.FunctionComponent = () => {
   useDocumentTitle('Virtual machines');
 
-  const [selectedTreeNode, setSelectedTreeNode] = React.useState<string | null>(null);
+  const [selectedTreeNode, setSelectedTreeNode] = React.useState<string | null>('all-clusters');
   const [sidebarSearch, setSidebarSearch] = React.useState('');
   const [showOnlyWithVMs, setShowOnlyWithVMs] = React.useState(true);
   const [isTreeExpanded, setIsTreeExpanded] = React.useState(true);
@@ -293,7 +293,7 @@ const VirtualMachines: React.FunctionComponent = () => {
   const [isSearchMenuOpen, setIsSearchMenuOpen] = React.useState(false);
   const [isAdvancedSearchOpen, setIsAdvancedSearchOpen] = React.useState(false);
   const [isAdvancedSearchActive, setIsAdvancedSearchActive] = React.useState(false);
-  const [expandedNodes, setExpandedNodes] = React.useState<string[]>([]);
+  const [expandedNodes, setExpandedNodes] = React.useState<string[]>(['all-clusters']);
   const [treeKey, setTreeKey] = React.useState(0);
   const [selectedVMDetails, setSelectedVMDetails] = React.useState<string | null>(null);
   const [vmDetailsActiveTab, setVmDetailsActiveTab] = React.useState<string>('overview');
@@ -767,7 +767,75 @@ const VirtualMachines: React.FunctionComponent = () => {
     return filteredVMs.slice(start, start + perPage);
   }, [filteredVMs, page, perPage]);
 
-  // Status counts - based on filtered VMs
+  // VMs for status counts - apply all filters except status filter
+  const vmsForStatusCounts = React.useMemo(() => {
+    let vms = getAllVMs.filter(vm => {
+      // Apply cluster filter (from tree or dropdown, or from selected project's cluster)
+      // If "all-clusters" is selected, don't filter by cluster at all - show all VMs
+      if (selectedTreeNode === 'all-clusters') {
+        // Show all VMs from all clusters - no cluster filtering
+      } else {
+        const effectiveClusterFilter = selectedClusterFromTree || clusterForSelectedProject || clusterFilter;
+        if (effectiveClusterFilter && effectiveClusterFilter !== 'All') {
+          if (Array.isArray(effectiveClusterFilter)) {
+            if (effectiveClusterFilter.length === 0 || !effectiveClusterFilter.includes(vm.cluster)) {
+              return false;
+            }
+          } else if (vm.cluster !== effectiveClusterFilter) {
+            return false;
+          }
+        }
+      }
+      
+      // Apply project filter (from tree or dropdown)
+      if (selectedProjectFromTree) {
+        // If a project is selected from tree, only show that project
+        if (vm.namespace !== selectedProjectFromTree) {
+          return false;
+        }
+      } else if (projectFilter !== 'All') {
+        // If projects are selected from dropdown (can be array for multi-select)
+        if (Array.isArray(projectFilter)) {
+          if (projectFilter.length === 0 || !projectFilter.includes(vm.namespace)) {
+            return false;
+          }
+        } else if (vm.namespace !== projectFilter) {
+          return false;
+        }
+      }
+      
+      // Apply advanced search filters if active (but not status)
+      if (isAdvancedSearchActive) {
+        if (advancedSearchName && !vm.name.toLowerCase().includes(advancedSearchName.toLowerCase())) {
+          return false;
+        }
+        if (advancedSearchCluster.length > 0) {
+          if (!advancedSearchCluster.includes(vm.cluster)) {
+            return false;
+          }
+        }
+        if (advancedSearchProject.length > 0) {
+          if (!advancedSearchProject.includes(vm.namespace)) {
+            return false;
+          }
+        }
+        // Skip advancedSearchStatus - we don't want to filter by status for counts
+        if (advancedSearchIPAddress && !vm.name.toLowerCase().includes(advancedSearchIPAddress.toLowerCase())) {
+          return false;
+        }
+      }
+
+      // Search in VM name and labels (but not status filter)
+      const searchLower = searchValue.toLowerCase();
+      const matchesSearch = !searchValue || 
+        vm.name.toLowerCase().includes(searchLower) ||
+        (vm.labels && vm.labels.some(label => label.toLowerCase().includes(searchLower)));
+      return matchesSearch;
+    });
+    return vms;
+  }, [getAllVMs, isAdvancedSearchActive, advancedSearchCluster, advancedSearchProject, advancedSearchOS, advancedSearchVCPUOperator, advancedSearchVCPUValue, advancedSearchMemoryOperator, advancedSearchMemoryValue, advancedSearchName, advancedSearchIPAddress, osFilter, clusterFilter, projectFilter, selectedClusterFromTree, clusterForSelectedProject, selectedProjectFromTree, selectedTreeNode, searchValue]);
+
+  // Status counts - based on VMs with all filters except status filter
   const vmStatusCounts = React.useMemo(() => {
     const counts = { 
       Migrating: 0, 
@@ -783,13 +851,13 @@ const VirtualMachines: React.FunctionComponent = () => {
       Error: 0,
       Failing: 0
     };
-    filteredVMs.forEach(vm => {
+    vmsForStatusCounts.forEach(vm => {
       if (vm.status in counts) {
         counts[vm.status as keyof typeof counts]++;
       }
     });
     return counts;
-  }, [filteredVMs]);
+  }, [vmsForStatusCounts]);
 
   const availableStatuses = ['All', 'Migrating', 'Paused', 'Provisioning', 'Running', 'Starting', 'Stopped', 'Stopping', 'Terminating', 'Unknown', 'WaitingForVolumeBinding', 'Error', 'Failing'];
   const availableOSs = ['All', 'RHEL', 'CentOS', 'Ubuntu'];
@@ -2721,7 +2789,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                               const hasStatusFilter = statusFilterArray.length > 0;
                               const isAllClustersSelected = selectedTreeNode === 'all-clusters';
                               
-                              // Show "All clusters" text if selected from tree or if any filters are applied
+                              // Show "All clusters" text and counts if selected from tree or if any filters are applied
                               if (isAllClustersSelected || hasClusterFilter || hasProjectFilter || hasStatusFilter) {
                                 return (
                                   <>
@@ -2790,19 +2858,143 @@ const VirtualMachines: React.FunctionComponent = () => {
                           <Grid hasGutter>
                             {/* Error - Top Left */}
                             <GridItem span={6}>
-                              <span style={{ fontSize: '14px', color: '#0066CC' }}>{vmStatusCounts.Error} Error</span>
+                              {(() => {
+                                const statusFilterArray = Array.isArray(statusFilter) ? statusFilter : (statusFilter !== 'All' ? [statusFilter] : []);
+                                const isSelected = statusFilterArray.includes('Error');
+                                return (
+                                  <span 
+                                    style={{ 
+                                      fontSize: '14px', 
+                                      color: '#0066CC', 
+                                      cursor: 'pointer',
+                                      textDecoration: isSelected ? 'underline' : 'none',
+                                      fontWeight: isSelected ? 'bold' : 'normal'
+                                    }}
+                                    onClick={() => {
+                                      if (isSelected) {
+                                        const newFilter = statusFilterArray.filter(s => s !== 'Error');
+                                        setStatusFilter(newFilter.length === 0 ? 'All' : newFilter);
+                                      } else {
+                                        const newFilter = statusFilter === 'All' ? ['Error'] : [...statusFilterArray, 'Error'];
+                                        setStatusFilter(newFilter);
+                                      }
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.opacity = '0.7';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.opacity = '1';
+                                    }}
+                                  >
+                                    {vmStatusCounts.Error} Error
+                                  </span>
+                                );
+                              })()}
                             </GridItem>
                             {/* Stopped - Top Right */}
                             <GridItem span={6}>
-                              <span style={{ fontSize: '14px', color: '#0066CC' }}>{vmStatusCounts.Stopped} Stopped</span>
+                              {(() => {
+                                const statusFilterArray = Array.isArray(statusFilter) ? statusFilter : (statusFilter !== 'All' ? [statusFilter] : []);
+                                const isSelected = statusFilterArray.includes('Stopped');
+                                return (
+                                  <span 
+                                    style={{ 
+                                      fontSize: '14px', 
+                                      color: '#0066CC', 
+                                      cursor: 'pointer',
+                                      textDecoration: isSelected ? 'underline' : 'none',
+                                      fontWeight: isSelected ? 'bold' : 'normal'
+                                    }}
+                                    onClick={() => {
+                                      if (isSelected) {
+                                        const newFilter = statusFilterArray.filter(s => s !== 'Stopped');
+                                        setStatusFilter(newFilter.length === 0 ? 'All' : newFilter);
+                                      } else {
+                                        const newFilter = statusFilter === 'All' ? ['Stopped'] : [...statusFilterArray, 'Stopped'];
+                                        setStatusFilter(newFilter);
+                                      }
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.opacity = '0.7';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.opacity = '1';
+                                    }}
+                                  >
+                                    {vmStatusCounts.Stopped} Stopped
+                                  </span>
+                                );
+                              })()}
                             </GridItem>
                             {/* Running - Bottom Left */}
                             <GridItem span={6}>
-                              <span style={{ fontSize: '14px', color: '#0066CC' }}>{vmStatusCounts.Running} Running</span>
+                              {(() => {
+                                const statusFilterArray = Array.isArray(statusFilter) ? statusFilter : (statusFilter !== 'All' ? [statusFilter] : []);
+                                const isSelected = statusFilterArray.includes('Running');
+                                return (
+                                  <span 
+                                    style={{ 
+                                      fontSize: '14px', 
+                                      color: '#0066CC', 
+                                      cursor: 'pointer',
+                                      textDecoration: isSelected ? 'underline' : 'none',
+                                      fontWeight: isSelected ? 'bold' : 'normal'
+                                    }}
+                                    onClick={() => {
+                                      if (isSelected) {
+                                        const newFilter = statusFilterArray.filter(s => s !== 'Running');
+                                        setStatusFilter(newFilter.length === 0 ? 'All' : newFilter);
+                                      } else {
+                                        const newFilter = statusFilter === 'All' ? ['Running'] : [...statusFilterArray, 'Running'];
+                                        setStatusFilter(newFilter);
+                                      }
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.opacity = '0.7';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.opacity = '1';
+                                    }}
+                                  >
+                                    {vmStatusCounts.Running} Running
+                                  </span>
+                                );
+                              })()}
                             </GridItem>
                             {/* Paused - Bottom Right */}
                             <GridItem span={6}>
-                              <span style={{ fontSize: '14px', color: '#0066CC' }}>{vmStatusCounts.Paused} Paused</span>
+                              {(() => {
+                                const statusFilterArray = Array.isArray(statusFilter) ? statusFilter : (statusFilter !== 'All' ? [statusFilter] : []);
+                                const isSelected = statusFilterArray.includes('Paused');
+                                return (
+                                  <span 
+                                    style={{ 
+                                      fontSize: '14px', 
+                                      color: '#0066CC', 
+                                      cursor: 'pointer',
+                                      textDecoration: isSelected ? 'underline' : 'none',
+                                      fontWeight: isSelected ? 'bold' : 'normal'
+                                    }}
+                                    onClick={() => {
+                                      if (isSelected) {
+                                        const newFilter = statusFilterArray.filter(s => s !== 'Paused');
+                                        setStatusFilter(newFilter.length === 0 ? 'All' : newFilter);
+                                      } else {
+                                        const newFilter = statusFilter === 'All' ? ['Paused'] : [...statusFilterArray, 'Paused'];
+                                        setStatusFilter(newFilter);
+                                      }
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.opacity = '0.7';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.opacity = '1';
+                                    }}
+                                  >
+                                    {vmStatusCounts.Paused} Paused
+                                  </span>
+                                );
+                              })()}
                             </GridItem>
                           </Grid>
                         </FlexItem>
@@ -3022,6 +3214,21 @@ const VirtualMachines: React.FunctionComponent = () => {
                                     {(() => {
                                       const clusterFilterArray = Array.isArray(clusterFilter) ? clusterFilter : (clusterFilter !== 'All' ? [clusterFilter] : []);
                                       const selectedCount = selectedClusterFromTree || selectedProjectFromTree ? 1 : clusterFilterArray.length;
+                                      if (selectedClusterFromTree || selectedProjectFromTree) {
+                                        return selectedCount > 0 ? (
+                                          <FlexItem>
+                                            <Badge isRead>{selectedCount}</Badge>
+                                          </FlexItem>
+                                        ) : null;
+                                      }
+                                      // Show "All" badge when "All" is selected, or count when items are selected
+                                      if (clusterFilter === 'All') {
+                                        return (
+                                          <FlexItem>
+                                            <Badge isRead>All</Badge>
+                                          </FlexItem>
+                                        );
+                                      }
                                       return selectedCount > 0 ? (
                                         <FlexItem>
                                           <Badge isRead>{selectedCount}</Badge>
@@ -3133,11 +3340,28 @@ const VirtualMachines: React.FunctionComponent = () => {
                                   >
                                     <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
                                       <FlexItem>Project</FlexItem>
-                                      {selectedCount > 0 && (
-                                        <FlexItem>
-                                          <Badge isRead>{selectedCount}</Badge>
-                                        </FlexItem>
-                                      )}
+                                      {(() => {
+                                        if (selectedProjectFromTree) {
+                                          return selectedCount > 0 ? (
+                                            <FlexItem>
+                                              <Badge isRead>{selectedCount}</Badge>
+                                            </FlexItem>
+                                          ) : null;
+                                        }
+                                        // Show "All" badge when "All" is selected, or count when items are selected
+                                        if (projectFilter === 'All') {
+                                          return (
+                                            <FlexItem>
+                                              <Badge isRead>All</Badge>
+                                            </FlexItem>
+                                          );
+                                        }
+                                        return selectedCount > 0 ? (
+                                          <FlexItem>
+                                            <Badge isRead>{selectedCount}</Badge>
+                                          </FlexItem>
+                                        ) : null;
+                                      })()}
                                     </Flex>
                                   </MenuToggle>
                                 );
@@ -3254,11 +3478,21 @@ const VirtualMachines: React.FunctionComponent = () => {
                                 <MenuToggle ref={toggleRef} onClick={() => setIsStatusFilterOpen(!isStatusFilterOpen)} isExpanded={isStatusFilterOpen} variant="default">
                                   <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
                                     <FlexItem>Status</FlexItem>
-                                    {selectedCount > 0 && (
-                                      <FlexItem>
-                                        <Badge isRead>{selectedCount}</Badge>
-                                      </FlexItem>
-                                    )}
+                                    {(() => {
+                                      // Show "All" badge when "All" is selected, or count when items are selected
+                                      if (statusFilter === 'All') {
+                                        return (
+                                          <FlexItem>
+                                            <Badge isRead>All</Badge>
+                                          </FlexItem>
+                                        );
+                                      }
+                                      return selectedCount > 0 ? (
+                                        <FlexItem>
+                                          <Badge isRead>{selectedCount}</Badge>
+                                        </FlexItem>
+                                      ) : null;
+                                    })()}
                                   </Flex>
                                 </MenuToggle>
                               );
