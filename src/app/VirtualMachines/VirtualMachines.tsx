@@ -1262,12 +1262,27 @@ const VirtualMachines: React.FunctionComponent = () => {
                       {/* All search results section */}
                       {matchingVMs.length > 0 && (
                         <>
-                          <div style={{ 
-                            padding: '12px 16px', 
-                            fontSize: '0.875rem',
-                            fontWeight: 600,
-                            color: 'var(--pf-t--global--color--brand--default)',
-                          }}>
+                          <div 
+                            onClick={() => {
+                              setIsSearchMenuOpen(false);
+                              setAdvancedSearchName(searchValue);
+                              setIsAdvancedSearchActive(true);
+                              setSearchValue('');
+                            }}
+                            style={{ 
+                              padding: '12px 16px', 
+                              fontSize: '0.875rem',
+                              fontWeight: 600,
+                              color: 'var(--pf-t--global--color--brand--default)',
+                              cursor: 'pointer',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.textDecoration = 'underline';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.textDecoration = 'none';
+                            }}
+                          >
                             All search results found for '{searchValue}'
                           </div>
                           <div>
@@ -2958,9 +2973,13 @@ const VirtualMachines: React.FunctionComponent = () => {
           {filteredVMs.length === 0 ? (
             <EmptyState>
               <Title headingLevel="h2" size="lg">
-                No virtual machines
+                {isAdvancedSearchActive ? 'No results found' : 'No virtual machines'}
               </Title>
-              <EmptyStateBody>No virtual machines match the selected filters.</EmptyStateBody>
+              <EmptyStateBody>
+                {isAdvancedSearchActive 
+                  ? 'No virtual machines match your search criteria. Try adjusting your filters.'
+                  : 'No virtual machines match the selected filters.'}
+              </EmptyStateBody>
               <EmptyStateActions>
                 <Button 
                   variant="primary" 
