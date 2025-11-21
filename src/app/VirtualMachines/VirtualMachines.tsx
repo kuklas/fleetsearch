@@ -56,6 +56,7 @@ import {
   Nav,
   NavList,
   NavItem,
+  Icon,
 } from '@patternfly/react-core';
 import {
   ServerIcon,
@@ -74,6 +75,7 @@ import {
   SyncAltIcon,
   OffIcon,
   PauseCircleIcon,
+  PauseIcon,
   EllipsisVIcon,
   LongArrowAltUpIcon,
   LongArrowAltDownIcon,
@@ -2789,103 +2791,19 @@ const VirtualMachines: React.FunctionComponent = () => {
                           <Grid hasGutter>
                             {/* Error - Top Left */}
                             <GridItem span={6}>
-                              <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                                <FlexItem>
-                                  <div style={{
-                                    width: '16px',
-                                    height: '16px',
-                                    borderRadius: '50%',
-                                    backgroundColor: '#C9190B',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    padding: 0,
-                                    margin: 0,
-                                    boxSizing: 'border-box',
-                                    border: '0.5px solid #C9190B'
-                                  }}>
-                                    <span style={{ fontSize: '12px', color: 'white', fontWeight: 'bold', lineHeight: '1' }}>!</span>
-                                  </div>
-                                </FlexItem>
-                                <FlexItem>
-                                  <span style={{ fontSize: '14px', color: '#0066CC' }}>{vmStatusCounts.Error} Error</span>
-                                </FlexItem>
-                              </Flex>
+                              <span style={{ fontSize: '14px', color: '#0066CC' }}>{vmStatusCounts.Error} Error</span>
                             </GridItem>
                             {/* Stopped - Top Right */}
                             <GridItem span={6}>
-                              <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                                <FlexItem>
-                                  <div style={{
-                                    width: '16px',
-                                    height: '16px',
-                                    borderRadius: '50%',
-                                    backgroundColor: '#000000',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    padding: 0,
-                                    margin: 0,
-                                    boxSizing: 'border-box',
-                                    border: '0.5px solid #000000'
-                                  }}>
-                                    <ClockIcon style={{ fontSize: '10px', color: 'white', stroke: 'none', strokeWidth: 0, fill: 'white' }} />
-                                  </div>
-                                </FlexItem>
-                                <FlexItem>
-                                  <span style={{ fontSize: '14px', color: '#0066CC' }}>{vmStatusCounts.Stopped} Stopped</span>
-                                </FlexItem>
-                              </Flex>
+                              <span style={{ fontSize: '14px', color: '#0066CC' }}>{vmStatusCounts.Stopped} Stopped</span>
                             </GridItem>
                             {/* Running - Bottom Left */}
                             <GridItem span={6}>
-                              <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                                <FlexItem>
-                                  <div style={{
-                                    width: '16px',
-                                    height: '16px',
-                                    borderRadius: '50%',
-                                    backgroundColor: '#000000',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    padding: 0,
-                                    margin: 0,
-                                    boxSizing: 'border-box',
-                                    border: '0.5px solid #000000'
-                                  }}>
-                                    <SyncAltIcon style={{ fontSize: '10px', color: 'white', stroke: 'none', strokeWidth: 0, fill: 'white' }} />
-                                  </div>
-                                </FlexItem>
-                                <FlexItem>
-                                  <span style={{ fontSize: '14px', color: '#0066CC' }}>{vmStatusCounts.Running} Running</span>
-                                </FlexItem>
-                              </Flex>
+                              <span style={{ fontSize: '14px', color: '#0066CC' }}>{vmStatusCounts.Running} Running</span>
                             </GridItem>
                             {/* Paused - Bottom Right */}
                             <GridItem span={6}>
-                              <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                                <FlexItem>
-                                  <div style={{
-                                    width: '16px',
-                                    height: '16px',
-                                    borderRadius: '50%',
-                                    backgroundColor: '#000000',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    padding: 0,
-                                    margin: 0,
-                                    boxSizing: 'border-box',
-                                    border: '0.5px solid #000000'
-                                  }}>
-                                    <PauseCircleIcon style={{ fontSize: '10px', color: 'white', stroke: 'none', strokeWidth: 0, fill: 'white' }} />
-                                  </div>
-                                </FlexItem>
-                                <FlexItem>
-                                  <span style={{ fontSize: '14px', color: '#0066CC' }}>{vmStatusCounts.Paused} Paused</span>
-                                </FlexItem>
-                              </Flex>
+                              <span style={{ fontSize: '14px', color: '#0066CC' }}>{vmStatusCounts.Paused} Paused</span>
                             </GridItem>
                           </Grid>
                         </FlexItem>
@@ -3908,100 +3826,9 @@ const VirtualMachines: React.FunctionComponent = () => {
                   </thead>
                   <tbody>
                     {paginatedVMs.map(vm => {
-                      // Determine status icon and color - match the card pattern
+                      // Determine status icon - PatternFly 6 icons
+                      // Status icon removed
                       const getStatusIcon = () => {
-                        if (vm.status === 'Error' || vm.status === 'Failing') {
-                          return (
-                            <div style={{
-                              width: '16px',
-                              height: '16px',
-                              borderRadius: '50%',
-                              backgroundColor: '#C9190B',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              padding: 0,
-                              margin: 0,
-                              boxSizing: 'border-box',
-                              border: '0.5px solid #C9190B'
-                            }}>
-                              <span style={{ fontSize: '12px', color: 'white', fontWeight: 'bold', lineHeight: '1' }}>!</span>
-                            </div>
-                          );
-                        } else if (vm.status === 'Stopped' || vm.status === 'Stopping' || vm.status === 'Terminating') {
-                          return (
-                            <div style={{
-                              width: '16px',
-                              height: '16px',
-                              borderRadius: '50%',
-                              backgroundColor: '#000000',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              padding: 0,
-                              margin: 0,
-                              boxSizing: 'border-box',
-                              border: '0.5px solid #000000'
-                            }}>
-                              <ClockIcon style={{ fontSize: '10px', color: 'white', stroke: 'none', strokeWidth: 0, fill: 'white' }} />
-                            </div>
-                          );
-                        } else if (vm.status === 'Running') {
-                          return (
-                            <div style={{
-                              width: '16px',
-                              height: '16px',
-                              borderRadius: '50%',
-                              backgroundColor: '#000000',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              padding: 0,
-                              margin: 0,
-                              boxSizing: 'border-box',
-                              border: '0.5px solid #000000'
-                            }}>
-                              <SyncAltIcon style={{ fontSize: '10px', color: 'white', stroke: 'none', strokeWidth: 0, fill: 'white' }} />
-                            </div>
-                          );
-                        } else if (vm.status === 'Paused') {
-                          return (
-                            <div style={{
-                              width: '16px',
-                              height: '16px',
-                              borderRadius: '50%',
-                              backgroundColor: '#000000',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              padding: 0,
-                              margin: 0,
-                              boxSizing: 'border-box',
-                              border: '0.5px solid #000000'
-                            }}>
-                              <PauseCircleIcon style={{ fontSize: '10px', color: 'white', stroke: 'none', strokeWidth: 0, fill: 'white' }} />
-                            </div>
-                          );
-                        } else if (vm.status === 'Starting' || vm.status === 'Provisioning' || vm.status === 'Migrating' || vm.status === 'WaitingForVolumeBinding') {
-                          return (
-                            <div style={{
-                              width: '16px',
-                              height: '16px',
-                              borderRadius: '50%',
-                              backgroundColor: '#000000',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              padding: 0,
-                              margin: 0,
-                              boxSizing: 'border-box',
-                              border: '0.5px solid #000000'
-                            }}>
-                              <SyncAltIcon style={{ fontSize: '10px', color: 'white', stroke: 'none', strokeWidth: 0, fill: 'white' }} />
-                            </div>
-                          );
-                        }
-                        // Unknown status - no icon or default icon
                         return null;
                       };
 

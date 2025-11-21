@@ -433,6 +433,7 @@ const Pods: React.FunctionComponent = () => {
   });
   const [draggedColumn, setDraggedColumn] = React.useState<string | null>(null);
   const [isSearchMenuOpen, setIsSearchMenuOpen] = React.useState(false);
+  const [isSearchFilterDropdownOpen, setIsSearchFilterDropdownOpen] = React.useState(false);
   const [searchInputValue, setSearchInputValue] = React.useState('');
   const searchInputRef = React.useRef<HTMLDivElement>(null);
 
@@ -459,22 +460,23 @@ const Pods: React.FunctionComponent = () => {
     return searchInputValue;
   };
 
-  // Close search menu when clicking outside
+  // Close search menu and filter dropdown when clicking outside
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchInputRef.current && !searchInputRef.current.contains(event.target as Node)) {
         setIsSearchMenuOpen(false);
+        setIsSearchFilterDropdownOpen(false);
       }
     };
 
-    if (isSearchMenuOpen) {
+    if (isSearchMenuOpen || isSearchFilterDropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isSearchMenuOpen]);
+  }, [isSearchMenuOpen, isSearchFilterDropdownOpen]);
 
   // Get unique values for filters
   const clusters = React.useMemo(() => Array.from(new Set(mockPods.map(pod => pod.cluster))), []);
@@ -790,6 +792,10 @@ const Pods: React.FunctionComponent = () => {
     // This allows users to type "cpu:<0.5" without immediately creating a chip
     setSearchInputValue(value);
     setIsSearchMenuOpen(value.length > 0);
+    // Close filter dropdown when user starts typing
+    if (value.length > 0) {
+      setIsSearchFilterDropdownOpen(false);
+    }
     
     // Extract plain text search (without field:value patterns) for filtering
     const plainText = value.replace(/\w+:(>=|<=|!=|!|>|<|=)?[^\s]+/g, '').trim();
@@ -974,91 +980,33 @@ const Pods: React.FunctionComponent = () => {
   };
 
   // Helper function to count pods for a specific filter option
+  // Returns static counts that don't change based on other filters
   const getFilterOptionCount = React.useCallback((field: string, value: string) => {
-    let filtered = [...mockPods];
-    
-    // Apply all active filters EXCEPT the one we're counting
-    const otherFilters = activeFilters.filter(f => !(f.field.toLowerCase() === field.toLowerCase() && f.value === value));
-    
-    // Group filters by field
-    const filtersByField: Record<string, Array<{ field: string; value: string; operator?: string }>> = {};
-    otherFilters.forEach(filter => {
-      const fieldKey = filter.field.toLowerCase();
-      if (!filtersByField[fieldKey]) {
-        filtersByField[fieldKey] = [];
-      }
-      filtersByField[fieldKey].push(filter);
-    });
-    
-    // Apply other filters (same logic as filteredPods)
-    Object.keys(filtersByField).forEach(fieldKey => {
-      const fieldFilters = filtersByField[fieldKey];
-      
-      if (fieldKey === 'namespace') {
-        // When counting namespace options, exclude all namespace filters except the one being counted
-        // This allows us to see counts for each namespace option independently
-        if (field.toLowerCase() === 'namespace' && value !== 'All') {
-          // Don't apply namespace filters when counting a specific namespace
-          // We want to see how many pods match this namespace given other filters
-        } else if (!fieldFilters.some(f => f.value === 'All')) {
-          const values = fieldFilters.map(f => f.value.toLowerCase());
-          filtered = filtered.filter(pod => values.includes(pod.namespace.toLowerCase()));
-        }
-      } else if (fieldKey === 'cluster') {
-        if (!fieldFilters.some(f => f.value === 'All')) {
-          const values = fieldFilters.map(f => f.value.toLowerCase());
-          filtered = filtered.filter(pod => values.includes(pod.cluster.toLowerCase()));
-        }
-      } else if (fieldKey === 'status') {
-        if (!fieldFilters.some(f => f.value === 'All')) {
-          const values = fieldFilters.map(f => f.value.toLowerCase());
-          filtered = filtered.filter(pod => values.includes(pod.status.toLowerCase()));
-        }
-      } else if (fieldKey === 'owner') {
-        if (!fieldFilters.some(f => f.value === 'All')) {
-          const values = fieldFilters.map(f => f.value.toLowerCase());
-          filtered = filtered.filter(pod => values.includes(pod.owner.toLowerCase()));
-        }
-      }
-      // Add other field filters as needed
-    });
-    
-    // Apply plain text search if present
-    if (searchValue) {
-      const searchLower = searchValue.toLowerCase();
-      filtered = filtered.filter(pod => 
-        pod.name.toLowerCase().includes(searchLower) ||
-        pod.namespace.toLowerCase().includes(searchLower) ||
-        pod.cluster.toLowerCase().includes(searchLower) ||
-        pod.owner.toLowerCase().includes(searchLower)
-      );
-    }
-    
-    // Now count pods matching the specific filter option
+    // Always count from all pods, regardless of active filters
     if (field.toLowerCase() === 'cluster') {
       if (value === 'All') {
-        return filtered.length;
+        return mockPods.length;
       }
-      return filtered.filter(pod => pod.cluster.toLowerCase() === value.toLowerCase()).length;
+      return mockPods.filter(pod => pod.cluster.toLowerCase() === value.toLowerCase()).length;
     } else if (field.toLowerCase() === 'namespace') {
       if (value === 'All') {
-        return filtered.length;
+        return mockPods.length;
       }
-      return filtered.filter(pod => pod.namespace.toLowerCase() === value.toLowerCase()).length;
+      return mockPods.filter(pod => pod.namespace.toLowerCase() === value.toLowerCase()).length;
     } else if (field.toLowerCase() === 'status') {
       if (value === 'All') {
-        return filtered.length;
+        return mockPods.length;
       }
-      return filtered.filter(pod => pod.status.toLowerCase() === value.toLowerCase()).length;
+      return mockPods.filter(pod => pod.status.toLowerCase() === value.toLowerCase()).length;
     } else if (field.toLowerCase() === 'owner') {
       if (value === 'All') {
-        return filtered.length;
+        return mockPods.length;
       }
-      return filtered.filter(pod => pod.owner.toLowerCase() === value.toLowerCase()).length;
+      return mockPods.filter(pod => pod.owner.toLowerCase() === value.toLowerCase()).length;
     }
     
     return 0;
-  }, [activeFilters, searchValue]);
+  }, []);
 
   // Filter and sort pods
   const filteredPods = React.useMemo(() => {
@@ -1282,6 +1230,10 @@ const Pods: React.FunctionComponent = () => {
                 // Focus the input when clicking the container
                 const input = document.getElementById('pods-search-input');
                 input?.focus();
+                // Show filter dropdown if search is empty
+                if (getCurrentTextInput().length === 0) {
+                  setIsSearchFilterDropdownOpen(true);
+                }
               }}
             >
               {/* Filter Chips */}
@@ -1303,7 +1255,13 @@ const Pods: React.FunctionComponent = () => {
                 placeholder={activeFilters.length === 0 ? "Search by name or use filters (e.g., status:Running, ready:2/2, memory:>20)" : ""}
                 value={getCurrentTextInput()}
                 onChange={(e) => handleSearchInputChange(e.target.value)}
-                onFocus={() => searchInputValue.length > 0 && setIsSearchMenuOpen(true)}
+                onFocus={() => {
+                  if (searchInputValue.length > 0) {
+                    setIsSearchMenuOpen(true);
+                  } else {
+                    setIsSearchFilterDropdownOpen(true);
+                  }
+                }}
                 onKeyDown={(e) => {
                   // When user presses Enter, create filter chip if there's a complete filter pattern
                   if (e.key === 'Enter') {
@@ -1362,6 +1320,98 @@ const Pods: React.FunctionComponent = () => {
                 </Button>
               ) : null}
             </div>
+
+            {/* Filter Options Dropdown - Shows when clicking on empty search */}
+            {isSearchFilterDropdownOpen && getCurrentTextInput().length === 0 && (
+              <div
+                className="search-dropdown-menu"
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  marginTop: '4px',
+                  zIndex: 1000,
+                  maxHeight: '400px',
+                  overflowY: 'auto',
+                }}
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                <Menu>
+                  <MenuContent>
+                    <MenuList>
+                      <MenuItem isDisabled>
+                        <strong>Filter by</strong>
+                      </MenuItem>
+                      <MenuItem
+                        onClick={() => {
+                          handleSearchInputChange('namespace:');
+                          setIsSearchFilterDropdownOpen(false);
+                        }}
+                      >
+                        Namespace
+                      </MenuItem>
+                      <MenuItem
+                        onClick={() => {
+                          handleSearchInputChange('cluster:');
+                          setIsSearchFilterDropdownOpen(false);
+                        }}
+                      >
+                        Cluster
+                      </MenuItem>
+                      <MenuItem
+                        onClick={() => {
+                          handleSearchInputChange('status:');
+                          setIsSearchFilterDropdownOpen(false);
+                        }}
+                      >
+                        Status
+                      </MenuItem>
+                      <MenuItem
+                        onClick={() => {
+                          handleSearchInputChange('owner:');
+                          setIsSearchFilterDropdownOpen(false);
+                        }}
+                      >
+                        Owner
+                      </MenuItem>
+                      <MenuItem
+                        onClick={() => {
+                          handleSearchInputChange('ready:');
+                          setIsSearchFilterDropdownOpen(false);
+                        }}
+                      >
+                        Ready
+                      </MenuItem>
+                      <MenuItem
+                        onClick={() => {
+                          handleSearchInputChange('memory:');
+                          setIsSearchFilterDropdownOpen(false);
+                        }}
+                      >
+                        Memory
+                      </MenuItem>
+                      <MenuItem
+                        onClick={() => {
+                          handleSearchInputChange('cpu:');
+                          setIsSearchFilterDropdownOpen(false);
+                        }}
+                      >
+                        CPU
+                      </MenuItem>
+                      <MenuItem
+                        onClick={() => {
+                          handleSearchInputChange('restarts:');
+                          setIsSearchFilterDropdownOpen(false);
+                        }}
+                      >
+                        Restarts
+                      </MenuItem>
+                    </MenuList>
+                  </MenuContent>
+                </Menu>
+              </div>
+            )}
 
             {/* Autocomplete Dropdown */}
             {isSearchMenuOpen && getSearchSuggestions && (
@@ -1668,7 +1718,16 @@ const Pods: React.FunctionComponent = () => {
                       isExpanded={isClusterFilterOpen}
                       variant="default"
                     >
-                      Cluster {clusterFilter.length > 0 && `: ${clusterFilter.length} selected`}
+                      <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                        <FlexItem>Cluster</FlexItem>
+                        {clusterFilter.length > 0 && (
+                          <FlexItem>
+                            <Badge isRead>
+                              {activeFilters.some(f => f.field === 'cluster' && f.value === 'All') ? 'All' : clusterFilter.length}
+                            </Badge>
+                          </FlexItem>
+                        )}
+                      </Flex>
                     </MenuToggle>
                   )}
                 >
@@ -1758,7 +1817,16 @@ const Pods: React.FunctionComponent = () => {
                       isExpanded={isNamespaceFilterOpen}
                       variant="default"
                     >
-                      Namespace {namespaceFilter.length > 0 && `: ${namespaceFilter.length} selected`}
+                      <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                        <FlexItem>Namespace</FlexItem>
+                        {namespaceFilter.length > 0 && (
+                          <FlexItem>
+                            <Badge isRead>
+                              {activeFilters.some(f => f.field === 'namespace' && f.value === 'All') ? 'All' : namespaceFilter.length}
+                            </Badge>
+                          </FlexItem>
+                        )}
+                      </Flex>
                     </MenuToggle>
                   )}
                 >
@@ -1848,7 +1916,16 @@ const Pods: React.FunctionComponent = () => {
                       isExpanded={isStatusFilterOpen}
                       variant="default"
                     >
-                      Status {statusFilter.length > 0 && `: ${statusFilter.length} selected`}
+                      <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                        <FlexItem>Status</FlexItem>
+                        {statusFilter.length > 0 && (
+                          <FlexItem>
+                            <Badge isRead>
+                              {activeFilters.some(f => f.field === 'status' && f.value === 'All') ? 'All' : statusFilter.length}
+                            </Badge>
+                          </FlexItem>
+                        )}
+                      </Flex>
                     </MenuToggle>
                   )}
                 >
@@ -1938,7 +2015,16 @@ const Pods: React.FunctionComponent = () => {
                       isExpanded={isOwnerFilterOpen}
                       variant="default"
                     >
-                      Owner {ownerFilter.length > 0 && `: ${ownerFilter.length} selected`}
+                      <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                        <FlexItem>Owner</FlexItem>
+                        {ownerFilter.length > 0 && (
+                          <FlexItem>
+                            <Badge isRead>
+                              {activeFilters.some(f => f.field === 'owner' && f.value === 'All') ? 'All' : ownerFilter.length}
+                            </Badge>
+                          </FlexItem>
+                        )}
+                      </Flex>
                     </MenuToggle>
                   )}
                 >

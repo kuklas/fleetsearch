@@ -409,6 +409,15 @@ body.resizing-sidebar * {
   vector-effect: non-scaling-stroke !important;
 }
 
+/* Ensure icons are white inside colored circles in status indicators */
+.vm-page div[style*="backgroundColor: '#C9190B'"] svg,
+.vm-page div[style*="backgroundColor: '#000000'"] svg,
+.vm-page div[style*="backgroundColor: \"#C9190B\""] svg,
+.vm-page div[style*="backgroundColor: \"#000000\""] svg {
+  fill: white !important;
+  color: white !important;
+}
+
 /* Advanced search modal - horizontal form layout */
 .pf-v6-c-modal .pf-v6-c-form__group > .pf-v6-c-form__label {
   display: none !important;
