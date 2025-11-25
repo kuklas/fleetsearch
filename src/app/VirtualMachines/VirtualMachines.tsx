@@ -232,6 +232,16 @@ const generateMockData = () => {
         vmCounter++;
       }
       
+      // Add one more VM with "Failing" status
+      const failingVmNumber = String(Math.floor(vmCounter) + 1).padStart(2, '0');
+      const failingVmName = `vm-${failingVmNumber}`;
+      defaultVms.push({
+        id: `vm-${vmCounter}`,
+        name: failingVmName,
+        status: 'Failing',
+      });
+      vmCounter++;
+      
       namespaces.push({
         id: defaultNamespaceId,
         name: 'default',
@@ -309,17 +319,17 @@ const VirtualMachines: React.FunctionComponent = () => {
     advancedSearchCluster: string[];
     advancedSearchProject: string[];
     advancedSearchDescription: string;
-    advancedSearchStatus: string;
+    advancedSearchStatus: string[];
     advancedSearchOS: string;
     advancedSearchVCPUOperator: string;
     advancedSearchVCPUValue: string;
     advancedSearchMemoryOperator: string;
     advancedSearchMemoryValue: string;
     advancedSearchMemoryUnit: string;
-    advancedSearchStorageClass: string;
+    advancedSearchStorageClass: string[];
     advancedSearchGPU: boolean;
     advancedSearchHostDevices: boolean;
-    advancedSearchDateCreated: string;
+    advancedSearchDateCreated: string[];
     advancedSearchIPAddress: string;
   }>>([]);
   const [isSaveSearchModalOpen, setIsSaveSearchModalOpen] = React.useState(false);
@@ -334,17 +344,17 @@ const VirtualMachines: React.FunctionComponent = () => {
   const [clusterSearchValue, setClusterSearchValue] = React.useState('');
   const [projectSearchValue, setProjectSearchValue] = React.useState('');
   const [advancedSearchDescription, setAdvancedSearchDescription] = React.useState('');
-  const [advancedSearchStatus, setAdvancedSearchStatus] = React.useState('');
+  const [advancedSearchStatus, setAdvancedSearchStatus] = React.useState<string[]>([]);
   const [advancedSearchOS, setAdvancedSearchOS] = React.useState('');
   const [advancedSearchVCPUOperator, setAdvancedSearchVCPUOperator] = React.useState('greater');
   const [advancedSearchVCPUValue, setAdvancedSearchVCPUValue] = React.useState('');
   const [advancedSearchMemoryOperator, setAdvancedSearchMemoryOperator] = React.useState('greater');
   const [advancedSearchMemoryValue, setAdvancedSearchMemoryValue] = React.useState('');
   const [advancedSearchMemoryUnit, setAdvancedSearchMemoryUnit] = React.useState('GiB');
-  const [advancedSearchStorageClass, setAdvancedSearchStorageClass] = React.useState('');
+  const [advancedSearchStorageClass, setAdvancedSearchStorageClass] = React.useState<string[]>([]);
   const [advancedSearchGPU, setAdvancedSearchGPU] = React.useState(false);
   const [advancedSearchHostDevices, setAdvancedSearchHostDevices] = React.useState(false);
-  const [advancedSearchDateCreated, setAdvancedSearchDateCreated] = React.useState('any');
+  const [advancedSearchDateCreated, setAdvancedSearchDateCreated] = React.useState<string[]>([]);
   const [advancedSearchIPAddress, setAdvancedSearchIPAddress] = React.useState('');
   const [isDetailsExpanded, setIsDetailsExpanded] = React.useState(true);
   const [isNetworkExpanded, setIsNetworkExpanded] = React.useState(false);
@@ -363,6 +373,7 @@ const VirtualMachines: React.FunctionComponent = () => {
   // Advanced search results page filter dropdown states
   const [isAdvSearchResultsClusterOpen, setIsAdvSearchResultsClusterOpen] = React.useState(false);
   const [isAdvSearchResultsProjectOpen, setIsAdvSearchResultsProjectOpen] = React.useState(false);
+  const [isAdvSearchResultsStatusOpen, setIsAdvSearchResultsStatusOpen] = React.useState(false);
   const [isAdvSearchResultsStorageClassOpen, setIsAdvSearchResultsStorageClassOpen] = React.useState(false);
   const [isAdvSearchResultsHardwareOpen, setIsAdvSearchResultsHardwareOpen] = React.useState(false);
   const [isAdvSearchResultsSchedulingOpen, setIsAdvSearchResultsSchedulingOpen] = React.useState(false);
@@ -663,6 +674,34 @@ const VirtualMachines: React.FunctionComponent = () => {
   // Filter and sort VMs
   const filteredVMs = React.useMemo(() => {
     let vms = getAllVMs.filter(vm => {
+      // If advanced search is active, ONLY apply advanced search filters and ignore all regular filters
+      if (isAdvancedSearchActive) {
+        if (advancedSearchName && !vm.name.toLowerCase().includes(advancedSearchName.toLowerCase())) {
+          return false;
+        }
+        if (advancedSearchCluster.length > 0) {
+          if (!advancedSearchCluster.includes(vm.cluster)) {
+            return false;
+          }
+        }
+        if (advancedSearchProject.length > 0) {
+          if (!advancedSearchProject.includes(vm.namespace)) {
+            return false;
+          }
+        }
+        if (advancedSearchStatus.length > 0) {
+          if (!advancedSearchStatus.includes(vm.status)) {
+            return false;
+          }
+        }
+        if (advancedSearchIPAddress && !vm.name.toLowerCase().includes(advancedSearchIPAddress.toLowerCase())) {
+          return false;
+        }
+        // Return true if all advanced search filters pass
+        return true;
+      }
+      
+      // Regular VM page filters (only applied when advanced search is NOT active)
       // If a namespace is selected from tree, getAllVMs already filtered to that namespace
       // So we only need to apply other filters (status, search, etc.), not cluster/project filters
       if (selectedTreeNode?.startsWith('namespace-')) {
@@ -700,29 +739,6 @@ const VirtualMachines: React.FunctionComponent = () => {
           } else if (vm.namespace !== projectFilter) {
             return false;
           }
-        }
-      }
-      
-      // Apply advanced search filters if active
-      if (isAdvancedSearchActive) {
-        if (advancedSearchName && !vm.name.toLowerCase().includes(advancedSearchName.toLowerCase())) {
-          return false;
-        }
-        if (advancedSearchCluster.length > 0) {
-          if (!advancedSearchCluster.includes(vm.cluster)) {
-            return false;
-          }
-        }
-        if (advancedSearchProject.length > 0) {
-          if (!advancedSearchProject.includes(vm.namespace)) {
-            return false;
-          }
-        }
-        if (advancedSearchStatus && vm.status !== advancedSearchStatus) {
-          return false;
-        }
-        if (advancedSearchIPAddress && !vm.name.toLowerCase().includes(advancedSearchIPAddress.toLowerCase())) {
-          return false;
         }
       }
 
@@ -776,6 +792,30 @@ const VirtualMachines: React.FunctionComponent = () => {
   // VMs for status counts - apply all filters except status filter
   const vmsForStatusCounts = React.useMemo(() => {
     let vms = getAllVMs.filter(vm => {
+      // If advanced search is active, ONLY apply advanced search filters (except status) and ignore all regular filters
+      if (isAdvancedSearchActive) {
+        if (advancedSearchName && !vm.name.toLowerCase().includes(advancedSearchName.toLowerCase())) {
+          return false;
+        }
+        if (advancedSearchCluster.length > 0) {
+          if (!advancedSearchCluster.includes(vm.cluster)) {
+            return false;
+          }
+        }
+        if (advancedSearchProject.length > 0) {
+          if (!advancedSearchProject.includes(vm.namespace)) {
+            return false;
+          }
+        }
+        // Skip advancedSearchStatus - we don't want to filter by status for counts
+        if (advancedSearchIPAddress && !vm.name.toLowerCase().includes(advancedSearchIPAddress.toLowerCase())) {
+          return false;
+        }
+        // Return true if all advanced search filters pass
+        return true;
+      }
+      
+      // Regular VM page filters (only applied when advanced search is NOT active)
       // Apply cluster filter (from tree or dropdown, or from selected project's cluster)
       // If "all-clusters" is selected, don't filter by cluster at all - show all VMs
       if (selectedTreeNode === 'all-clusters') {
@@ -806,27 +846,6 @@ const VirtualMachines: React.FunctionComponent = () => {
             return false;
           }
         } else if (vm.namespace !== projectFilter) {
-          return false;
-        }
-      }
-      
-      // Apply advanced search filters if active (but not status)
-      if (isAdvancedSearchActive) {
-        if (advancedSearchName && !vm.name.toLowerCase().includes(advancedSearchName.toLowerCase())) {
-          return false;
-        }
-        if (advancedSearchCluster.length > 0) {
-          if (!advancedSearchCluster.includes(vm.cluster)) {
-            return false;
-          }
-        }
-        if (advancedSearchProject.length > 0) {
-          if (!advancedSearchProject.includes(vm.namespace)) {
-            return false;
-          }
-        }
-        // Skip advancedSearchStatus - we don't want to filter by status for counts
-        if (advancedSearchIPAddress && !vm.name.toLowerCase().includes(advancedSearchIPAddress.toLowerCase())) {
           return false;
         }
       }
@@ -1190,7 +1209,7 @@ const VirtualMachines: React.FunctionComponent = () => {
 
   return (
     <div className="vm-page">
-      <div className="vm-header">
+      <div className="vm-header" style={isAdvancedSearchActive ? { borderBottomColor: 'var(--pf-t--global--background--color--primary--default)' } : undefined}>
         <div>
           <Flex
             alignItems={{ default: 'alignItemsCenter' }}
@@ -1600,18 +1619,10 @@ const VirtualMachines: React.FunctionComponent = () => {
             </FlexItem>
           </Flex>
 
-          {/* Divider between header and search results */}
-          {isAdvancedSearchActive && (
-            <div style={{
-              margin: '24px 0',
-              borderTop: '1px solid var(--pf-t--global--border--color--default)',
-              width: '100%'
-            }} />
-          )}
 
           {/* Search Results Toolbar with Filters */}
           {isAdvancedSearchActive && (
-            <div style={{ borderBottom: 'none' }}>
+            <div style={{ borderBottom: 'none', paddingTop: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0px' }}>
                 <Title headingLevel="h2" size="xl">Search results</Title>
                 <Button
@@ -1623,14 +1634,14 @@ const VirtualMachines: React.FunctionComponent = () => {
                     setAdvancedSearchCluster([]);
                     setAdvancedSearchProject([]);
                     setAdvancedSearchDescription('');
-                    setAdvancedSearchStatus('');
+                    setAdvancedSearchStatus([]);
                     setAdvancedSearchOS('');
                     setAdvancedSearchVCPUValue('');
                     setAdvancedSearchMemoryValue('');
-                    setAdvancedSearchStorageClass('');
+                    setAdvancedSearchStorageClass([]);
                     setAdvancedSearchGPU(false);
                     setAdvancedSearchHostDevices(false);
-                    setAdvancedSearchDateCreated('any');
+                    setAdvancedSearchDateCreated([]);
                     setAdvancedSearchIPAddress('');
                   }}
                 >
@@ -1641,7 +1652,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                 <FlexItem>
                   <Dropdown
                     isOpen={isAdvSearchResultsClusterOpen}
-                    onSelect={() => setIsAdvSearchResultsClusterOpen(false)}
+                    onSelect={() => {}} // Don't close on select for multi-select
                     onOpenChange={(isOpen: boolean) => setIsAdvSearchResultsClusterOpen(isOpen)}
                     toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
                       <MenuToggle
@@ -1650,16 +1661,27 @@ const VirtualMachines: React.FunctionComponent = () => {
                         isExpanded={isAdvSearchResultsClusterOpen}
                         variant="default"
                       >
-                        Cluster: {advancedSearchCluster.length > 0 ? advancedSearchCluster.join(', ') : 'All'}
+                        <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                          <FlexItem>Cluster</FlexItem>
+                          {advancedSearchCluster.length === 0 ? (
+                            <FlexItem>
+                              <Badge isRead>All</Badge>
+                            </FlexItem>
+                          ) : (
+                            <FlexItem>
+                              <Badge isRead>{advancedSearchCluster.length}</Badge>
+                            </FlexItem>
+                          )}
+                        </Flex>
                       </MenuToggle>
                     )}
                   >
                     <DropdownList>
                       <DropdownItem
                         key="all"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e?.stopPropagation();
                           setAdvancedSearchCluster([]);
-                          setIsAdvSearchResultsClusterOpen(false);
                         }}
                       >
                         <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
@@ -1709,7 +1731,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                 <FlexItem>
                   <Dropdown
                     isOpen={isAdvSearchResultsProjectOpen}
-                    onSelect={() => setIsAdvSearchResultsProjectOpen(false)}
+                    onSelect={() => {}} // Don't close on select for multi-select
                     onOpenChange={(isOpen: boolean) => setIsAdvSearchResultsProjectOpen(isOpen)}
                     toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
                       <MenuToggle
@@ -1718,16 +1740,27 @@ const VirtualMachines: React.FunctionComponent = () => {
                         isExpanded={isAdvSearchResultsProjectOpen}
                         variant="default"
                       >
-                        Project: {advancedSearchProject.length > 0 ? advancedSearchProject.join(', ') : 'All'}
+                        <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                          <FlexItem>Project</FlexItem>
+                          {advancedSearchProject.length === 0 ? (
+                            <FlexItem>
+                              <Badge isRead>All</Badge>
+                            </FlexItem>
+                          ) : (
+                            <FlexItem>
+                              <Badge isRead>{advancedSearchProject.length}</Badge>
+                            </FlexItem>
+                          )}
+                        </Flex>
                       </MenuToggle>
                     )}
                   >
                     <DropdownList>
                       <DropdownItem
                         key="all"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e?.stopPropagation();
                           setAdvancedSearchProject([]);
-                          setIsAdvSearchResultsProjectOpen(false);
                         }}
                       >
                         <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
@@ -1781,8 +1814,87 @@ const VirtualMachines: React.FunctionComponent = () => {
                 </FlexItem>
                 <FlexItem>
                   <Dropdown
+                    isOpen={isAdvSearchResultsStatusOpen}
+                    onSelect={() => {}} // Don't close on select for multi-select
+                    onOpenChange={(isOpen: boolean) => setIsAdvSearchResultsStatusOpen(isOpen)}
+                    toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+                      <MenuToggle
+                        ref={toggleRef}
+                        onClick={() => setIsAdvSearchResultsStatusOpen(!isAdvSearchResultsStatusOpen)}
+                        isExpanded={isAdvSearchResultsStatusOpen}
+                        variant="default"
+                      >
+                        <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                          <FlexItem>Status</FlexItem>
+                          {advancedSearchStatus.length === 0 ? (
+                            <FlexItem>
+                              <Badge isRead>All</Badge>
+                            </FlexItem>
+                          ) : (
+                            <FlexItem>
+                              <Badge isRead>{advancedSearchStatus.length}</Badge>
+                            </FlexItem>
+                          )}
+                        </Flex>
+                      </MenuToggle>
+                    )}
+                  >
+                    <DropdownList>
+                      <DropdownItem
+                        key="all"
+                        onClick={(e) => {
+                          e?.stopPropagation();
+                          setAdvancedSearchStatus([]);
+                        }}
+                      >
+                        <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                          <FlexItem>
+                            <Checkbox
+                              id="adv-search-status-all"
+                              isChecked={advancedSearchStatus.length === 0}
+                              onChange={() => {}}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </FlexItem>
+                          <FlexItem>
+                            All
+                          </FlexItem>
+                        </Flex>
+                      </DropdownItem>
+                      {availableStatuses.filter(s => s !== 'All').map(status => (
+                        <DropdownItem
+                          key={status}
+                          onClick={(e) => {
+                            e?.stopPropagation();
+                            if (advancedSearchStatus.includes(status)) {
+                              setAdvancedSearchStatus(prev => prev.filter(s => s !== status));
+                            } else {
+                              setAdvancedSearchStatus(prev => [...prev, status]);
+                            }
+                          }}
+                        >
+                          <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                            <FlexItem>
+                              <Checkbox
+                                id={`adv-search-status-${status}`}
+                                isChecked={advancedSearchStatus.includes(status)}
+                                onChange={() => {}}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </FlexItem>
+                            <FlexItem>
+                              {status}
+                            </FlexItem>
+                          </Flex>
+                        </DropdownItem>
+                      ))}
+                    </DropdownList>
+                  </Dropdown>
+                </FlexItem>
+                <FlexItem>
+                  <Dropdown
                     isOpen={isAdvSearchResultsStorageClassOpen}
-                    onSelect={() => setIsAdvSearchResultsStorageClassOpen(false)}
+                    onSelect={() => {}} // Don't close on select for multi-select
                     onOpenChange={(isOpen: boolean) => setIsAdvSearchResultsStorageClassOpen(isOpen)}
                     toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
                       <MenuToggle
@@ -1791,23 +1903,34 @@ const VirtualMachines: React.FunctionComponent = () => {
                         isExpanded={isAdvSearchResultsStorageClassOpen}
                         variant="default"
                       >
-                        Storage class: {advancedSearchStorageClass || 'All'}
+                        <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                          <FlexItem>Storage class</FlexItem>
+                          {advancedSearchStorageClass.length === 0 ? (
+                            <FlexItem>
+                              <Badge isRead>All</Badge>
+                            </FlexItem>
+                          ) : (
+                            <FlexItem>
+                              <Badge isRead>{advancedSearchStorageClass.length}</Badge>
+                            </FlexItem>
+                          )}
+                        </Flex>
                       </MenuToggle>
                     )}
                   >
                     <DropdownList>
                       <DropdownItem
                         key="all"
-                        onClick={() => {
-                          setAdvancedSearchStorageClass('');
-                          setIsAdvSearchResultsStorageClassOpen(false);
+                        onClick={(e) => {
+                          e?.stopPropagation();
+                          setAdvancedSearchStorageClass([]);
                         }}
                       >
                         <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
                           <FlexItem>
                             <Checkbox
                               id="adv-search-storage-all"
-                              isChecked={!advancedSearchStorageClass}
+                              isChecked={advancedSearchStorageClass.length === 0}
                               onChange={() => {}}
                               onClick={(e) => e.stopPropagation()}
                             />
@@ -1819,16 +1942,20 @@ const VirtualMachines: React.FunctionComponent = () => {
                       </DropdownItem>
                       <DropdownItem
                         key="ocs-storagecluster-ceph-rbd-virtualization"
-                        onClick={() => {
-                          setAdvancedSearchStorageClass('ocs-storagecluster-ceph-rbd-virtualization');
-                          setIsAdvSearchResultsStorageClassOpen(false);
+                        onClick={(e) => {
+                          e?.stopPropagation();
+                          if (advancedSearchStorageClass.includes('ocs-storagecluster-ceph-rbd-virtualization')) {
+                            setAdvancedSearchStorageClass(prev => prev.filter(s => s !== 'ocs-storagecluster-ceph-rbd-virtualization'));
+                          } else {
+                            setAdvancedSearchStorageClass(prev => [...prev, 'ocs-storagecluster-ceph-rbd-virtualization']);
+                          }
                         }}
                       >
                         <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
                           <FlexItem>
                             <Checkbox
                               id="adv-search-storage-ocs"
-                              isChecked={advancedSearchStorageClass === 'ocs-storagecluster-ceph-rbd-virtualization'}
+                              isChecked={advancedSearchStorageClass.includes('ocs-storagecluster-ceph-rbd-virtualization')}
                               onChange={() => {}}
                               onClick={(e) => e.stopPropagation()}
                             />
@@ -1840,16 +1967,20 @@ const VirtualMachines: React.FunctionComponent = () => {
                       </DropdownItem>
                       <DropdownItem
                         key="gp3-csi"
-                        onClick={() => {
-                          setAdvancedSearchStorageClass('gp3-csi');
-                          setIsAdvSearchResultsStorageClassOpen(false);
+                        onClick={(e) => {
+                          e?.stopPropagation();
+                          if (advancedSearchStorageClass.includes('gp3-csi')) {
+                            setAdvancedSearchStorageClass(prev => prev.filter(s => s !== 'gp3-csi'));
+                          } else {
+                            setAdvancedSearchStorageClass(prev => [...prev, 'gp3-csi']);
+                          }
                         }}
                       >
                         <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
                           <FlexItem>
                             <Checkbox
                               id="adv-search-storage-gp3"
-                              isChecked={advancedSearchStorageClass === 'gp3-csi'}
+                              isChecked={advancedSearchStorageClass.includes('gp3-csi')}
                               onChange={() => {}}
                               onClick={(e) => e.stopPropagation()}
                             />
@@ -1874,7 +2005,18 @@ const VirtualMachines: React.FunctionComponent = () => {
                         isExpanded={isAdvSearchResultsHardwareOpen}
                         variant="default"
                       >
-                        Hardware devices: {advancedSearchGPU || advancedSearchHostDevices ? 'Selected' : 'All'}
+                        <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                          <FlexItem>Hardware devices</FlexItem>
+                          {!advancedSearchGPU && !advancedSearchHostDevices ? (
+                            <FlexItem>
+                              <Badge isRead>All</Badge>
+                            </FlexItem>
+                          ) : (
+                            <FlexItem>
+                              <Badge isRead>{(advancedSearchGPU ? 1 : 0) + (advancedSearchHostDevices ? 1 : 0)}</Badge>
+                            </FlexItem>
+                          )}
+                        </Flex>
                       </MenuToggle>
                     )}
                   >
@@ -1949,7 +2091,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                 <FlexItem>
                   <Dropdown
                     isOpen={isAdvSearchResultsSchedulingOpen}
-                    onSelect={() => setIsAdvSearchResultsSchedulingOpen(false)}
+                    onSelect={() => {}} // Don't close on select for multi-select
                     onOpenChange={(isOpen: boolean) => setIsAdvSearchResultsSchedulingOpen(isOpen)}
                     toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
                       <MenuToggle
@@ -1958,23 +2100,34 @@ const VirtualMachines: React.FunctionComponent = () => {
                         isExpanded={isAdvSearchResultsSchedulingOpen}
                         variant="default"
                       >
-                        Scheduling: {advancedSearchDateCreated !== 'any' ? advancedSearchDateCreated : 'All'}
+                        <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                          <FlexItem>Scheduling</FlexItem>
+                          {advancedSearchDateCreated.length === 0 ? (
+                            <FlexItem>
+                              <Badge isRead>All</Badge>
+                            </FlexItem>
+                          ) : (
+                            <FlexItem>
+                              <Badge isRead>{advancedSearchDateCreated.length}</Badge>
+                            </FlexItem>
+                          )}
+                        </Flex>
                       </MenuToggle>
                     )}
                   >
                     <DropdownList>
                       <DropdownItem
-                        key="any"
-                        onClick={() => {
-                          setAdvancedSearchDateCreated('any');
-                          setIsAdvSearchResultsSchedulingOpen(false);
+                        key="all"
+                        onClick={(e) => {
+                          e?.stopPropagation();
+                          setAdvancedSearchDateCreated([]);
                         }}
                       >
                         <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
                           <FlexItem>
                             <Checkbox
                               id="adv-search-scheduling-all"
-                              isChecked={advancedSearchDateCreated === 'any'}
+                              isChecked={advancedSearchDateCreated.length === 0}
                               onChange={() => {}}
                               onClick={(e) => e.stopPropagation()}
                             />
@@ -1984,90 +2137,36 @@ const VirtualMachines: React.FunctionComponent = () => {
                           </FlexItem>
                         </Flex>
                       </DropdownItem>
-                      <DropdownItem
-                        key="last-hour"
-                        onClick={() => {
-                          setAdvancedSearchDateCreated('last-hour');
-                          setIsAdvSearchResultsSchedulingOpen(false);
-                        }}
-                      >
-                        <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                          <FlexItem>
-                            <Checkbox
-                              id="adv-search-scheduling-hour"
-                              isChecked={advancedSearchDateCreated === 'last-hour'}
-                              onChange={() => {}}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </FlexItem>
-                          <FlexItem>
-                            Last hour
-                          </FlexItem>
-                        </Flex>
-                      </DropdownItem>
-                      <DropdownItem
-                        key="last-day"
-                        onClick={() => {
-                          setAdvancedSearchDateCreated('last-day');
-                          setIsAdvSearchResultsSchedulingOpen(false);
-                        }}
-                      >
-                        <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                          <FlexItem>
-                            <Checkbox
-                              id="adv-search-scheduling-day"
-                              isChecked={advancedSearchDateCreated === 'last-day'}
-                              onChange={() => {}}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </FlexItem>
-                          <FlexItem>
-                            Last day
-                          </FlexItem>
-                        </Flex>
-                      </DropdownItem>
-                      <DropdownItem
-                        key="last-week"
-                        onClick={() => {
-                          setAdvancedSearchDateCreated('last-week');
-                          setIsAdvSearchResultsSchedulingOpen(false);
-                        }}
-                      >
-                        <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                          <FlexItem>
-                            <Checkbox
-                              id="adv-search-scheduling-week"
-                              isChecked={advancedSearchDateCreated === 'last-week'}
-                              onChange={() => {}}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </FlexItem>
-                          <FlexItem>
-                            Last week
-                          </FlexItem>
-                        </Flex>
-                      </DropdownItem>
-                      <DropdownItem
-                        key="last-month"
-                        onClick={() => {
-                          setAdvancedSearchDateCreated('last-month');
-                          setIsAdvSearchResultsSchedulingOpen(false);
-                        }}
-                      >
-                        <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                          <FlexItem>
-                            <Checkbox
-                              id="adv-search-scheduling-month"
-                              isChecked={advancedSearchDateCreated === 'last-month'}
-                              onChange={() => {}}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </FlexItem>
-                          <FlexItem>
-                            Last month
-                          </FlexItem>
-                        </Flex>
-                      </DropdownItem>
+                      {['last-hour', 'last-day', 'last-week', 'last-month'].map(dateOption => (
+                        <DropdownItem
+                          key={dateOption}
+                          onClick={(e) => {
+                            e?.stopPropagation();
+                            if (advancedSearchDateCreated.includes(dateOption)) {
+                              setAdvancedSearchDateCreated(prev => prev.filter(d => d !== dateOption));
+                            } else {
+                              setAdvancedSearchDateCreated(prev => [...prev, dateOption]);
+                            }
+                          }}
+                        >
+                          <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                            <FlexItem>
+                              <Checkbox
+                                id={`adv-search-scheduling-${dateOption}`}
+                                isChecked={advancedSearchDateCreated.includes(dateOption)}
+                                onChange={() => {}}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </FlexItem>
+                            <FlexItem>
+                              {dateOption === 'last-hour' ? 'Last hour' :
+                               dateOption === 'last-day' ? 'Last day' :
+                               dateOption === 'last-week' ? 'Last week' :
+                               dateOption === 'last-month' ? 'Last month' : dateOption}
+                            </FlexItem>
+                          </Flex>
+                        </DropdownItem>
+                      ))}
                     </DropdownList>
                   </Dropdown>
                 </FlexItem>
@@ -2083,7 +2182,12 @@ const VirtualMachines: React.FunctionComponent = () => {
                         isExpanded={isAdvSearchResultsNodeOpen}
                         variant="default"
                       >
-                        Node: All
+                        <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                          <FlexItem>Node</FlexItem>
+                          <FlexItem>
+                            <Badge isRead>All</Badge>
+                          </FlexItem>
+                        </Flex>
                       </MenuToggle>
                     )}
                   >
@@ -2113,98 +2217,682 @@ const VirtualMachines: React.FunctionComponent = () => {
                   </Dropdown>
                 </FlexItem>
               </Flex>
-              <Flex style={{ marginTop: '0px', marginBottom: '0px', borderBottom: 'none' }} alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+              <Flex style={{ marginTop: '0px', marginBottom: '0px', borderBottom: 'none' }} alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }} wrap="wrap">
+                {/* Name chip */}
                 {advancedSearchName && (
                   <FlexItem>
-                    <Label
-                      color="grey"
-                      onClose={() => setAdvancedSearchName('')}
-                      closeBtnAriaLabel="Remove name filter"
-                    >
-                      Name: {advancedSearchName}
-                    </Label>
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      border: '1px solid var(--pf-t--global--border--color--default)',
+                      borderRadius: '4px',
+                      padding: '4px 8px',
+                      backgroundColor: 'var(--pf-t--global--background--color--primary--default)'
+                    }}>
+                      <span style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)', fontWeight: 400 }}>Name</span>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.875rem',
+                        flexWrap: 'wrap',
+                        maxWidth: '400px'
+                      }}>
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          backgroundColor: '#D0E7F5',
+                          padding: '2px 6px',
+                          borderRadius: '3px'
+                        }}>
+                          <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
+                            {advancedSearchName}
+                          </span>
+                          <Button
+                            variant="plain"
+                            onClick={() => setAdvancedSearchName('')}
+                            aria-label="Remove name filter"
+                            style={{ padding: '0', minWidth: 'auto', height: 'auto' }}
+                          >
+                            <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                          </Button>
+                        </div>
+                      </div>
+                      <Button
+                        variant="plain"
+                        onClick={() => setAdvancedSearchName('')}
+                        aria-label="Remove name filter"
+                        style={{ padding: '0', minWidth: 'auto', height: 'auto', marginLeft: '4px' }}
+                      >
+                        <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                      </Button>
+                    </div>
                   </FlexItem>
                 )}
-                {advancedSearchCluster.length > 0 && advancedSearchCluster.map((cluster, index) => (
-                  <FlexItem key={index}>
-                    <Label
-                      color="grey"
-                      onClose={() => setAdvancedSearchCluster(prev => prev.filter(c => c !== cluster))}
-                      closeBtnAriaLabel="Remove cluster filter"
-                    >
-                      Cluster: {cluster}
-                    </Label>
-                  </FlexItem>
-                ))}
-                {advancedSearchProject.length > 0 && advancedSearchProject.map((project, index) => (
-                  <FlexItem key={index}>
-                    <Label
-                      color="grey"
-                      onClose={() => setAdvancedSearchProject(prev => prev.filter(p => p !== project))}
-                      closeBtnAriaLabel="Remove project filter"
-                    >
-                      Project: {project}
-                    </Label>
-                  </FlexItem>
-                ))}
-                {advancedSearchStatus && (
+                {/* Cluster chip - single chip with all selected clusters, each with its own X, plus general X outside */}
+                {advancedSearchCluster.length > 0 && (
                   <FlexItem>
-                    <Label
-                      color="grey"
-                      onClose={() => setAdvancedSearchStatus('')}
-                      closeBtnAriaLabel="Remove status filter"
-                    >
-                      Status: {advancedSearchStatus}
-                    </Label>
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      border: '1px solid var(--pf-t--global--border--color--default)',
+                      borderRadius: '4px',
+                      padding: '4px 8px',
+                      backgroundColor: 'var(--pf-t--global--background--color--primary--default)'
+                    }}>
+                      <span style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)', fontWeight: 400 }}>Cluster</span>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.875rem',
+                        flexWrap: 'wrap',
+                        maxWidth: '400px'
+                      }}>
+                        {advancedSearchCluster.map((cluster, index) => (
+                          <div
+                            key={index}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              backgroundColor: '#D0E7F5',
+                              padding: '2px 6px',
+                              borderRadius: '3px'
+                            }}
+                          >
+                            <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
+                              {cluster}
+                            </span>
+                            <Button
+                              variant="plain"
+                              onClick={() => setAdvancedSearchCluster(prev => prev.filter(c => c !== cluster))}
+                              aria-label={`Remove ${cluster} filter`}
+                              style={{ padding: '0', minWidth: 'auto', height: 'auto' }}
+                            >
+                              <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <Button
+                        variant="plain"
+                        onClick={() => setAdvancedSearchCluster([])}
+                        aria-label="Remove all cluster filters"
+                        style={{ padding: '0', minWidth: 'auto', height: 'auto', marginLeft: '4px' }}
+                      >
+                        <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                      </Button>
+                    </div>
                   </FlexItem>
                 )}
+                {/* Project chip - single chip with all selected projects, each with its own X, plus general X outside */}
+                {advancedSearchProject.length > 0 && (
+                  <FlexItem>
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      border: '1px solid var(--pf-t--global--border--color--default)',
+                      borderRadius: '4px',
+                      padding: '4px 8px',
+                      backgroundColor: 'var(--pf-t--global--background--color--primary--default)'
+                    }}>
+                      <span style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)', fontWeight: 400 }}>Project</span>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.875rem',
+                        flexWrap: 'wrap',
+                        maxWidth: '400px'
+                      }}>
+                        {advancedSearchProject.map((project, index) => (
+                          <div
+                            key={index}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              backgroundColor: '#D0E7F5',
+                              padding: '2px 6px',
+                              borderRadius: '3px'
+                            }}
+                          >
+                            <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
+                              {project}
+                            </span>
+                            <Button
+                              variant="plain"
+                              onClick={() => setAdvancedSearchProject(prev => prev.filter(p => p !== project))}
+                              aria-label={`Remove ${project} filter`}
+                              style={{ padding: '0', minWidth: 'auto', height: 'auto' }}
+                            >
+                              <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <Button
+                        variant="plain"
+                        onClick={() => setAdvancedSearchProject([])}
+                        aria-label="Remove all project filters"
+                        style={{ padding: '0', minWidth: 'auto', height: 'auto', marginLeft: '4px' }}
+                      >
+                        <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                      </Button>
+                    </div>
+                  </FlexItem>
+                )}
+                {/* Status chip - single chip with all selected statuses, each with its own X, plus general X outside */}
+                {advancedSearchStatus.length > 0 && (
+                  <FlexItem>
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      border: '1px solid var(--pf-t--global--border--color--default)',
+                      borderRadius: '4px',
+                      padding: '4px 8px',
+                      backgroundColor: 'var(--pf-t--global--background--color--primary--default)'
+                    }}>
+                      <span style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)', fontWeight: 400 }}>Status</span>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.875rem',
+                        flexWrap: 'wrap',
+                        maxWidth: '400px'
+                      }}>
+                        {advancedSearchStatus.map((status, index) => (
+                          <div
+                            key={index}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              backgroundColor: '#D0E7F5',
+                              padding: '2px 6px',
+                              borderRadius: '3px'
+                            }}
+                          >
+                            <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
+                              {status}
+                            </span>
+                            <Button
+                              variant="plain"
+                              onClick={() => setAdvancedSearchStatus(prev => prev.filter(s => s !== status))}
+                              aria-label={`Remove ${status} filter`}
+                              style={{ padding: '0', minWidth: 'auto', height: 'auto' }}
+                            >
+                              <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <Button
+                        variant="plain"
+                        onClick={() => setAdvancedSearchStatus([])}
+                        aria-label="Remove all status filters"
+                        style={{ padding: '0', minWidth: 'auto', height: 'auto', marginLeft: '4px' }}
+                      >
+                        <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                      </Button>
+                    </div>
+                  </FlexItem>
+                )}
+                {/* OS chip */}
                 {advancedSearchOS && (
                   <FlexItem>
-                    <Label
-                      color="grey"
-                      onClose={() => setAdvancedSearchOS('')}
-                      closeBtnAriaLabel="Remove OS filter"
-                    >
-                      Operating system: {advancedSearchOS}
-                    </Label>
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      border: '1px solid var(--pf-t--global--border--color--default)',
+                      borderRadius: '4px',
+                      padding: '4px 8px',
+                      backgroundColor: 'var(--pf-t--global--background--color--primary--default)'
+                    }}>
+                      <span style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)', fontWeight: 400 }}>Operating system</span>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.875rem',
+                        flexWrap: 'wrap',
+                        maxWidth: '400px'
+                      }}>
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          backgroundColor: '#D0E7F5',
+                          padding: '2px 6px',
+                          borderRadius: '3px'
+                        }}>
+                          <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
+                            {advancedSearchOS}
+                          </span>
+                          <Button
+                            variant="plain"
+                            onClick={() => setAdvancedSearchOS('')}
+                            aria-label="Remove OS filter"
+                            style={{ padding: '0', minWidth: 'auto', height: 'auto' }}
+                          >
+                            <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                          </Button>
+                        </div>
+                      </div>
+                      <Button
+                        variant="plain"
+                        onClick={() => setAdvancedSearchOS('')}
+                        aria-label="Remove OS filter"
+                        style={{ padding: '0', minWidth: 'auto', height: 'auto', marginLeft: '4px' }}
+                      >
+                        <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                      </Button>
+                    </div>
                   </FlexItem>
                 )}
+                {/* vCPU chip */}
                 {advancedSearchVCPUValue && (
                   <FlexItem>
-                    <Label
-                      color="grey"
-                      onClose={() => setAdvancedSearchVCPUValue('')}
-                      closeBtnAriaLabel="Remove vCPU filter"
-                    >
-                      vCPU: {advancedSearchVCPUOperator} {advancedSearchVCPUValue}
-                    </Label>
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      border: '1px solid var(--pf-t--global--border--color--default)',
+                      borderRadius: '4px',
+                      padding: '4px 8px',
+                      backgroundColor: 'var(--pf-t--global--background--color--primary--default)'
+                    }}>
+                      <span style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)', fontWeight: 400 }}>vCPU</span>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.875rem',
+                        flexWrap: 'wrap',
+                        maxWidth: '400px'
+                      }}>
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          backgroundColor: '#D0E7F5',
+                          padding: '2px 6px',
+                          borderRadius: '3px'
+                        }}>
+                          <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
+                            {advancedSearchVCPUOperator} {advancedSearchVCPUValue}
+                          </span>
+                          <Button
+                            variant="plain"
+                            onClick={() => setAdvancedSearchVCPUValue('')}
+                            aria-label="Remove vCPU filter"
+                            style={{ padding: '0', minWidth: 'auto', height: 'auto' }}
+                          >
+                            <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                          </Button>
+                        </div>
+                      </div>
+                      <Button
+                        variant="plain"
+                        onClick={() => setAdvancedSearchVCPUValue('')}
+                        aria-label="Remove vCPU filter"
+                        style={{ padding: '0', minWidth: 'auto', height: 'auto', marginLeft: '4px' }}
+                      >
+                        <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                      </Button>
+                    </div>
                   </FlexItem>
                 )}
+                {/* Memory chip */}
                 {advancedSearchMemoryValue && (
                   <FlexItem>
-                    <Label
-                      color="grey"
-                      onClose={() => setAdvancedSearchMemoryValue('')}
-                      closeBtnAriaLabel="Remove memory filter"
-                    >
-                      Memory: {advancedSearchMemoryOperator} {advancedSearchMemoryValue} {advancedSearchMemoryUnit}
-                    </Label>
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      border: '1px solid var(--pf-t--global--border--color--default)',
+                      borderRadius: '4px',
+                      padding: '4px 8px',
+                      backgroundColor: 'var(--pf-t--global--background--color--primary--default)'
+                    }}>
+                      <span style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)', fontWeight: 400 }}>Memory</span>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.875rem',
+                        flexWrap: 'wrap',
+                        maxWidth: '400px'
+                      }}>
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          backgroundColor: '#D0E7F5',
+                          padding: '2px 6px',
+                          borderRadius: '3px'
+                        }}>
+                          <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
+                            {advancedSearchMemoryOperator} {advancedSearchMemoryValue} {advancedSearchMemoryUnit}
+                          </span>
+                          <Button
+                            variant="plain"
+                            onClick={() => setAdvancedSearchMemoryValue('')}
+                            aria-label="Remove memory filter"
+                            style={{ padding: '0', minWidth: 'auto', height: 'auto' }}
+                          >
+                            <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                          </Button>
+                        </div>
+                      </div>
+                      <Button
+                        variant="plain"
+                        onClick={() => setAdvancedSearchMemoryValue('')}
+                        aria-label="Remove memory filter"
+                        style={{ padding: '0', minWidth: 'auto', height: 'auto', marginLeft: '4px' }}
+                      >
+                        <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                      </Button>
+                    </div>
                   </FlexItem>
                 )}
+                {/* IP Address chip */}
                 {advancedSearchIPAddress && (
                   <FlexItem>
-                    <Label
-                      color="grey"
-                      onClose={() => setAdvancedSearchIPAddress('')}
-                      closeBtnAriaLabel="Remove IP address filter"
-                    >
-                      IP address: {advancedSearchIPAddress}
-                    </Label>
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      border: '1px solid var(--pf-t--global--border--color--default)',
+                      borderRadius: '4px',
+                      padding: '4px 8px',
+                      backgroundColor: 'var(--pf-t--global--background--color--primary--default)'
+                    }}>
+                      <span style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)', fontWeight: 400 }}>IP address</span>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.875rem',
+                        flexWrap: 'wrap',
+                        maxWidth: '400px'
+                      }}>
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          backgroundColor: '#D0E7F5',
+                          padding: '2px 6px',
+                          borderRadius: '3px'
+                        }}>
+                          <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
+                            {advancedSearchIPAddress}
+                          </span>
+                          <Button
+                            variant="plain"
+                            onClick={() => setAdvancedSearchIPAddress('')}
+                            aria-label="Remove IP address filter"
+                            style={{ padding: '0', minWidth: 'auto', height: 'auto' }}
+                          >
+                            <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                          </Button>
+                        </div>
+                      </div>
+                      <Button
+                        variant="plain"
+                        onClick={() => setAdvancedSearchIPAddress('')}
+                        aria-label="Remove IP address filter"
+                        style={{ padding: '0', minWidth: 'auto', height: 'auto', marginLeft: '4px' }}
+                      >
+                        <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                      </Button>
+                    </div>
+                  </FlexItem>
+                )}
+                {/* Storage class chip - single chip with all selected storage classes, each with its own X, plus general X outside */}
+                {advancedSearchStorageClass.length > 0 && (
+                  <FlexItem>
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      border: '1px solid var(--pf-t--global--border--color--default)',
+                      borderRadius: '4px',
+                      padding: '4px 8px',
+                      backgroundColor: 'var(--pf-t--global--background--color--primary--default)'
+                    }}>
+                      <span style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)', fontWeight: 400 }}>Storage class</span>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.875rem',
+                        flexWrap: 'wrap',
+                        maxWidth: '400px'
+                      }}>
+                        {advancedSearchStorageClass.map((storageClass, index) => (
+                          <div
+                            key={index}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              backgroundColor: '#D0E7F5',
+                              padding: '2px 6px',
+                              borderRadius: '3px'
+                            }}
+                          >
+                            <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
+                              {storageClass}
+                            </span>
+                            <Button
+                              variant="plain"
+                              onClick={() => setAdvancedSearchStorageClass(prev => prev.filter(s => s !== storageClass))}
+                              aria-label={`Remove ${storageClass} filter`}
+                              style={{ padding: '0', minWidth: 'auto', height: 'auto' }}
+                            >
+                              <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <Button
+                        variant="plain"
+                        onClick={() => setAdvancedSearchStorageClass([])}
+                        aria-label="Remove all storage class filters"
+                        style={{ padding: '0', minWidth: 'auto', height: 'auto', marginLeft: '4px' }}
+                      >
+                        <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                      </Button>
+                    </div>
+                  </FlexItem>
+                )}
+                {/* Hardware devices chip - single chip with selected devices, each with its own X, plus general X outside */}
+                {(advancedSearchGPU || advancedSearchHostDevices) && (
+                  <FlexItem>
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      border: '1px solid var(--pf-t--global--border--color--default)',
+                      borderRadius: '4px',
+                      padding: '4px 8px',
+                      backgroundColor: 'var(--pf-t--global--background--color--primary--default)'
+                    }}>
+                      <span style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)', fontWeight: 400 }}>Hardware devices</span>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.875rem',
+                        flexWrap: 'wrap',
+                        maxWidth: '400px'
+                      }}>
+                        {advancedSearchGPU && (
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            backgroundColor: '#D0E7F5',
+                            padding: '2px 6px',
+                            borderRadius: '3px'
+                          }}>
+                            <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
+                              GPU
+                            </span>
+                            <Button
+                              variant="plain"
+                              onClick={() => setAdvancedSearchGPU(false)}
+                              aria-label="Remove GPU filter"
+                              style={{ padding: '0', minWidth: 'auto', height: 'auto' }}
+                            >
+                              <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                            </Button>
+                          </div>
+                        )}
+                        {advancedSearchHostDevices && (
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            backgroundColor: '#D0E7F5',
+                            padding: '2px 6px',
+                            borderRadius: '3px'
+                          }}>
+                            <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
+                              Host devices
+                            </span>
+                            <Button
+                              variant="plain"
+                              onClick={() => setAdvancedSearchHostDevices(false)}
+                              aria-label="Remove Host devices filter"
+                              style={{ padding: '0', minWidth: 'auto', height: 'auto' }}
+                            >
+                              <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        variant="plain"
+                        onClick={() => {
+                          setAdvancedSearchGPU(false);
+                          setAdvancedSearchHostDevices(false);
+                        }}
+                        aria-label="Remove all hardware device filters"
+                        style={{ padding: '0', minWidth: 'auto', height: 'auto', marginLeft: '4px' }}
+                      >
+                        <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                      </Button>
+                    </div>
+                  </FlexItem>
+                )}
+                {/* Scheduling chip - single chip with all selected scheduling options, each with its own X, plus general X outside */}
+                {advancedSearchDateCreated.length > 0 && (
+                  <FlexItem>
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      border: '1px solid var(--pf-t--global--border--color--default)',
+                      borderRadius: '4px',
+                      padding: '4px 8px',
+                      backgroundColor: 'var(--pf-t--global--background--color--primary--default)'
+                    }}>
+                      <span style={{ fontSize: '0.875rem', color: 'var(--pf-t--global--text--color--default)', fontWeight: 400 }}>Scheduling</span>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.875rem',
+                        flexWrap: 'wrap',
+                        maxWidth: '400px'
+                      }}>
+                        {advancedSearchDateCreated.map((dateOption, index) => (
+                          <div
+                            key={index}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              backgroundColor: '#D0E7F5',
+                              padding: '2px 6px',
+                              borderRadius: '3px'
+                            }}
+                          >
+                            <span style={{ color: 'var(--pf-t--global--text--color--default)' }}>
+                              {dateOption === 'last-hour' ? 'Last hour' :
+                               dateOption === 'last-day' ? 'Last day' :
+                               dateOption === 'last-week' ? 'Last week' :
+                               dateOption === 'last-month' ? 'Last month' : dateOption}
+                            </span>
+                            <Button
+                              variant="plain"
+                              onClick={() => setAdvancedSearchDateCreated(prev => prev.filter(d => d !== dateOption))}
+                              aria-label={`Remove ${dateOption} filter`}
+                              style={{ padding: '0', minWidth: 'auto', height: 'auto' }}
+                            >
+                              <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <Button
+                        variant="plain"
+                        onClick={() => setAdvancedSearchDateCreated([])}
+                        aria-label="Remove all scheduling filters"
+                        style={{ padding: '0', minWidth: 'auto', height: 'auto', marginLeft: '4px' }}
+                      >
+                        <TimesIcon style={{ fontSize: '0.75rem', color: 'var(--pf-t--global--text--color--default)' }} />
+                      </Button>
+                    </div>
                   </FlexItem>
                 )}
                 {(advancedSearchName || advancedSearchCluster.length > 0 || advancedSearchProject.length > 0 ||
-                  advancedSearchStatus || advancedSearchOS || advancedSearchVCPUValue ||
-                  advancedSearchMemoryValue || advancedSearchIPAddress) && (
+                  advancedSearchStatus.length > 0 || advancedSearchOS || advancedSearchVCPUValue ||
+                  advancedSearchMemoryValue || advancedSearchIPAddress || advancedSearchStorageClass.length > 0 ||
+                  advancedSearchGPU || advancedSearchHostDevices || advancedSearchDateCreated.length > 0) && (
                     <FlexItem>
                       <Button
                         variant="link"
@@ -2212,11 +2900,15 @@ const VirtualMachines: React.FunctionComponent = () => {
                           setAdvancedSearchName('');
                           setAdvancedSearchCluster([]);
                           setAdvancedSearchProject([]);
-                          setAdvancedSearchStatus('');
+                          setAdvancedSearchStatus([]);
                           setAdvancedSearchOS('');
                           setAdvancedSearchVCPUValue('');
                           setAdvancedSearchMemoryValue('');
                           setAdvancedSearchIPAddress('');
+                          setAdvancedSearchStorageClass([]);
+                          setAdvancedSearchGPU(false);
+                          setAdvancedSearchHostDevices(false);
+                          setAdvancedSearchDateCreated([]);
                         }}
                       >
                         Clear all filters
@@ -2229,15 +2921,9 @@ const VirtualMachines: React.FunctionComponent = () => {
         </div>
       </div>
       
-      {/* Spacer to prevent line from showing above toolbar */}
+      {/* 16px gap between dropdowns and chips */}
       {isAdvancedSearchActive && (
-        <div style={{ 
-          height: '1px', 
-          backgroundColor: 'var(--pf-t--global--background--color--primary--default)',
-          marginTop: '-1px',
-          position: 'relative',
-          zIndex: 1
-        }} />
+        <div style={{ height: '16px', backgroundColor: 'var(--pf-t--global--background--color--primary--default)' }} />
       )}
 
       <div className={`vm-content-wrapper ${isSidebarCollapsed || isAdvancedSearchActive ? 'sidebar-collapsed' : ''}`} style={isAdvancedSearchActive ? { borderTop: 'none' } : undefined}>
@@ -3583,7 +4269,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                 <div style={{ paddingTop: '12px', paddingBottom: '12px', paddingLeft: '0', paddingRight: '16px', backgroundColor: 'var(--pf-t--global--background--color--primary--default)' }}>
                   <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsMd' }} wrap="wrap" style={{ width: '100%' }}>
                     {/* Cluster chip - single chip with all selected clusters, each with its own X, plus general X outside */}
-                    {(clusterFilter !== 'All' && !selectedClusterFromTree && !selectedProjectFromTree && (Array.isArray(clusterFilter) ? clusterFilter.length > 0 : true)) && (
+                    {!isAdvancedSearchActive && (clusterFilter !== 'All' && !selectedClusterFromTree && !selectedProjectFromTree && (Array.isArray(clusterFilter) ? clusterFilter.length > 0 : true)) && (
                       <FlexItem>
                         <div style={{
                           display: 'inline-flex',
@@ -3651,7 +4337,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                       </FlexItem>
                     )}
                     {/* Project chip - single chip with all selected projects, each with its own X, plus general X outside */}
-                    {(!selectedProjectFromTree && projectFilter !== 'All' && (Array.isArray(projectFilter) ? projectFilter.length > 0 : true)) && (
+                    {!isAdvancedSearchActive && (!selectedProjectFromTree && projectFilter !== 'All' && (Array.isArray(projectFilter) ? projectFilter.length > 0 : true)) && (
                       <FlexItem>
                         <div style={{
                           display: 'inline-flex',
@@ -3719,7 +4405,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                       </FlexItem>
                     )}
                     {/* Status chip - single chip with all selected statuses, each with its own X, plus general X outside */}
-                    {statusFilter !== 'All' && (Array.isArray(statusFilter) ? statusFilter.length > 0 : true) && (
+                    {!isAdvancedSearchActive && statusFilter !== 'All' && (Array.isArray(statusFilter) ? statusFilter.length > 0 : true) && (
                       <FlexItem>
                         <div style={{
                           display: 'inline-flex',
@@ -3828,7 +4514,7 @@ const VirtualMachines: React.FunctionComponent = () => {
                               setAdvancedSearchName('');
                               setAdvancedSearchCluster([]);
                               setAdvancedSearchProject([]);
-                              setAdvancedSearchStatus('');
+                              setAdvancedSearchStatus([]);
                               setAdvancedSearchOS('');
                               setAdvancedSearchVCPUValue('');
                               setAdvancedSearchMemoryValue('');
@@ -4790,14 +5476,33 @@ const VirtualMachines: React.FunctionComponent = () => {
                       isExpanded={isAdvSearchStatusOpen}
                       style={{ width: '100%' }}
                     >
-                      {advancedSearchStatus || 'Select status'}
+                      {advancedSearchStatus.length === 0 ? 'Select status' : advancedSearchStatus.join(', ')}
                     </MenuToggle>
                   )}
                 >
                   <DropdownList>
                     {availableStatuses.filter(s => s !== 'All').map(status => (
-                      <DropdownItem key={status} onClick={() => { setAdvancedSearchStatus(status); setIsAdvSearchStatusOpen(false); }}>
-                        {status}
+                      <DropdownItem key={status} onClick={(e) => { 
+                        e?.stopPropagation();
+                        if (advancedSearchStatus.includes(status)) {
+                          setAdvancedSearchStatus(prev => prev.filter(s => s !== status));
+                        } else {
+                          setAdvancedSearchStatus(prev => [...prev, status]);
+                        }
+                      }}>
+                        <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                          <FlexItem>
+                            <Checkbox
+                              id={`adv-search-status-modal-${status}`}
+                              isChecked={advancedSearchStatus.includes(status)}
+                              onChange={() => {}}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </FlexItem>
+                          <FlexItem>
+                            {status}
+                          </FlexItem>
+                        </Flex>
                       </DropdownItem>
                     ))}
                   </DropdownList>
@@ -4958,13 +5663,27 @@ const VirtualMachines: React.FunctionComponent = () => {
                         isExpanded={isAdvSearchStorageOpen}
                         style={{ width: '100%' }}
                       >
-                        {advancedSearchStorageClass || 'Select storage class'}
+                        {advancedSearchStorageClass.length > 0 ? advancedSearchStorageClass.join(', ') : 'Select storage class'}
                       </MenuToggle>
                     )}
                   >
                     <DropdownList>
-                      <DropdownItem onClick={() => { setAdvancedSearchStorageClass('standard'); setIsAdvSearchStorageOpen(false); }}>standard</DropdownItem>
-                      <DropdownItem onClick={() => { setAdvancedSearchStorageClass('premium'); setIsAdvSearchStorageOpen(false); }}>premium</DropdownItem>
+                      <DropdownItem onClick={(e) => {
+                        e?.stopPropagation();
+                        if (advancedSearchStorageClass.includes('standard')) {
+                          setAdvancedSearchStorageClass(prev => prev.filter(s => s !== 'standard'));
+                        } else {
+                          setAdvancedSearchStorageClass(prev => [...prev, 'standard']);
+                        }
+                      }}>standard</DropdownItem>
+                      <DropdownItem onClick={(e) => {
+                        e?.stopPropagation();
+                        if (advancedSearchStorageClass.includes('premium')) {
+                          setAdvancedSearchStorageClass(prev => prev.filter(s => s !== 'premium'));
+                        } else {
+                          setAdvancedSearchStorageClass(prev => [...prev, 'premium']);
+                        }
+                      }}>premium</DropdownItem>
                     </DropdownList>
                   </Dropdown>
                 </div>
@@ -5007,15 +5726,15 @@ const VirtualMachines: React.FunctionComponent = () => {
                         isExpanded={isAdvSearchDateOpen}
                         style={{ width: '100%' }}
                       >
-                        {advancedSearchDateCreated === 'any' ? 'Any time' : advancedSearchDateCreated}
+                        {advancedSearchDateCreated.length === 0 ? 'Any time' : advancedSearchDateCreated.map(d => d === 'last-hour' ? 'Last hour' : d === 'last-day' ? 'Last day' : d === 'last-week' ? 'Last week' : d === 'last-month' ? 'Last month' : d).join(', ')}
                       </MenuToggle>
                     )}
                   >
                     <DropdownList>
-                      <DropdownItem onClick={() => { setAdvancedSearchDateCreated('any'); setIsAdvSearchDateOpen(false); }}>Any time</DropdownItem>
-                      <DropdownItem onClick={() => { setAdvancedSearchDateCreated('today'); setIsAdvSearchDateOpen(false); }}>Today</DropdownItem>
-                      <DropdownItem onClick={() => { setAdvancedSearchDateCreated('week'); setIsAdvSearchDateOpen(false); }}>Last 7 days</DropdownItem>
-                      <DropdownItem onClick={() => { setAdvancedSearchDateCreated('month'); setIsAdvSearchDateOpen(false); }}>Last 30 days</DropdownItem>
+                      <DropdownItem onClick={(e) => { e?.stopPropagation(); setAdvancedSearchDateCreated([]); setIsAdvSearchDateOpen(false); }}>Any time</DropdownItem>
+                      <DropdownItem onClick={(e) => { e?.stopPropagation(); if (advancedSearchDateCreated.includes('last-day')) { setAdvancedSearchDateCreated(prev => prev.filter(d => d !== 'last-day')); } else { setAdvancedSearchDateCreated(prev => [...prev, 'last-day']); } }}>Today</DropdownItem>
+                      <DropdownItem onClick={(e) => { e?.stopPropagation(); if (advancedSearchDateCreated.includes('last-week')) { setAdvancedSearchDateCreated(prev => prev.filter(d => d !== 'last-week')); } else { setAdvancedSearchDateCreated(prev => [...prev, 'last-week']); } }}>Last 7 days</DropdownItem>
+                      <DropdownItem onClick={(e) => { e?.stopPropagation(); if (advancedSearchDateCreated.includes('last-month')) { setAdvancedSearchDateCreated(prev => prev.filter(d => d !== 'last-month')); } else { setAdvancedSearchDateCreated(prev => [...prev, 'last-month']); } }}>Last 30 days</DropdownItem>
                     </DropdownList>
                   </Dropdown>
                 </div>

@@ -840,7 +840,7 @@ const Pods: React.FunctionComponent = () => {
     setSearchInputValue(newValue);
     
     // Update plain text search
-    const plainText = newValue.replace(/\w+:(>=|<=|>|<)?[^\s]+/g, '').trim();
+    const plainText = newValue.replace(/\w+:(>=|<=|!=|!|>|<|=)?[^\s]+/g, '').trim();
     setSearchValue(plainText);
     
     if (newValue) {
