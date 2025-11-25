@@ -5827,14 +5827,14 @@ const VirtualMachines: React.FunctionComponent = () => {
             setAdvancedSearchCluster([]);
             setAdvancedSearchProject([]);
             setAdvancedSearchDescription('');
-            setAdvancedSearchStatus('');
+            setAdvancedSearchStatus([]);
             setAdvancedSearchOS('');
             setAdvancedSearchVCPUValue('');
             setAdvancedSearchMemoryValue('');
-            setAdvancedSearchStorageClass('');
+            setAdvancedSearchStorageClass([]);
             setAdvancedSearchGPU(false);
             setAdvancedSearchHostDevices(false);
-            setAdvancedSearchDateCreated('any');
+            setAdvancedSearchDateCreated([]);
             setAdvancedSearchIPAddress('');
           }}>
             Clear all
