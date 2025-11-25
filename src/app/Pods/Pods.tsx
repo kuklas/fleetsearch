@@ -345,6 +345,19 @@ const mockPods: Pod[] = [
     cpu: '0.063 cores',
     created: 'Nov 3, 2025, 10:20 AM',
   },
+  {
+    id: 'pod-restart-4',
+    name: 'service-worker-4e5f6a7b-2',
+    namespace: 'app-prod',
+    cluster: 'production-west',
+    status: 'Running',
+    ready: '2/2',
+    restarts: 10,
+    owner: 'service-worker-4e5f6a7b',
+    memory: '178.4 MiB',
+    cpu: '0.085 cores',
+    created: 'Nov 6, 2025, 1:30 PM',
+  },
   // Add more pods to reach desired total
   ...Array.from({ length: 35 }, (_, i) => ({
     id: `pod-${i + 11}`,
@@ -1059,9 +1072,28 @@ const Pods: React.FunctionComponent = () => {
           filtered = filtered.filter(pod => values.includes(pod.owner.toLowerCase()));
         }
       } else if (field === 'restarts') {
-        // Multi-select: show pods with ANY of the selected restart values
+        // For numeric fields with operators, apply each filter (AND logic between different operators)
+        // Multi-select: show pods with ANY of the selected restart values (OR logic for same operator)
         const values = fieldFilters.map(f => parseInt(f.value));
-        filtered = filtered.filter(pod => values.includes(pod.restarts));
+        filtered = filtered.filter(pod => {
+          return values.some(val => {
+            const filter = fieldFilters.find(f => parseInt(f.value) === val);
+            const operator = filter?.operator || '=';
+            if (operator === '>=') {
+              return pod.restarts >= val;
+            } else if (operator === '<=') {
+              return pod.restarts <= val;
+            } else if (operator === '>') {
+              return pod.restarts > val;
+            } else if (operator === '<') {
+              return pod.restarts < val;
+            } else if (operator === '!=' || operator === '!') {
+              return pod.restarts !== val;
+            } else {
+              return pod.restarts === val;
+            }
+          });
+        });
       } else if (field === 'cpu') {
         // For numeric fields with operators, apply each filter (AND logic between different operators)
         // Multi-select: show pods with ANY of the selected cpu values (OR logic for same operator)
