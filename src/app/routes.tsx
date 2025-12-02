@@ -25,10 +25,10 @@ export type AppRouteConfig = IAppRoute | IAppRouteGroup;
 
 const routes: AppRouteConfig[] = [
   {
-    element: <Pods />,
+    element: <VirtualMachines />,
     exact: true,
     path: '/',
-    title: 'PatternFly Seed | Pods',
+    title: 'PatternFly Seed | Virtual Machines',
   },
   {
     element: <VirtualMachines />,
