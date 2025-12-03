@@ -1784,7 +1784,17 @@ const Pods: React.FunctionComponent = () => {
                           <Checkbox
                             id="cluster-filter-all"
                             isChecked={activeFilters.some(f => f.field === 'cluster' && f.value === 'All')}
-                            onChange={() => {}}
+                            onChange={() => {
+                              const isAllSelected = activeFilters.some(f => f.field === 'cluster' && f.value === 'All');
+                              if (isAllSelected) {
+                                // Unselect "All"
+                                setActiveFilters(activeFilters.filter(f => !(f.field === 'cluster' && f.value === 'All')));
+                              } else {
+                                // Remove all other cluster filters and add "All"
+                                const otherFilters = activeFilters.filter(f => f.field !== 'cluster');
+                                setActiveFilters([...otherFilters, { field: 'cluster', value: 'All' }]);
+                              }
+                            }}
                             onClick={(e) => e.stopPropagation()}
                           />
                         </FlexItem>
@@ -1820,7 +1830,18 @@ const Pods: React.FunctionComponent = () => {
                               <Checkbox
                                 id={`cluster-filter-${cluster}`}
                                 isChecked={isSelected}
-                                onChange={() => {}}
+                                onChange={() => {
+                                  // Toggle selection when clicking the checkbox
+                                  if (isSelected) {
+                                    setActiveFilters(activeFilters.filter(f => !(f.field === 'cluster' && f.value === cluster)));
+                                  } else {
+                                    // Remove "All" if it exists, then add the specific cluster
+                                    const otherFilters = activeFilters.filter(f => !(f.field === 'cluster' && f.value === 'All'));
+                                    if (!otherFilters.some(f => f.field === 'cluster' && f.value === cluster)) {
+                                      setActiveFilters([...otherFilters, { field: 'cluster', value: cluster }]);
+                                    }
+                                  }
+                                }}
                                 onClick={(e) => e.stopPropagation()}
                               />
                             </FlexItem>
@@ -1883,7 +1904,17 @@ const Pods: React.FunctionComponent = () => {
                           <Checkbox
                             id="namespace-filter-all"
                             isChecked={activeFilters.some(f => f.field === 'namespace' && f.value === 'All')}
-                            onChange={() => {}}
+                            onChange={() => {
+                              const isAllSelected = activeFilters.some(f => f.field === 'namespace' && f.value === 'All');
+                              if (isAllSelected) {
+                                // Unselect "All"
+                                setActiveFilters(activeFilters.filter(f => !(f.field === 'namespace' && f.value === 'All')));
+                              } else {
+                                // Remove all other namespace filters and add "All"
+                                const otherFilters = activeFilters.filter(f => f.field !== 'namespace');
+                                setActiveFilters([...otherFilters, { field: 'namespace', value: 'All' }]);
+                              }
+                            }}
                             onClick={(e) => e.stopPropagation()}
                           />
                         </FlexItem>
@@ -1919,7 +1950,18 @@ const Pods: React.FunctionComponent = () => {
                               <Checkbox
                                 id={`namespace-filter-${namespace}`}
                                 isChecked={isSelected}
-                                onChange={() => {}}
+                                onChange={() => {
+                                  // Toggle selection when clicking the checkbox
+                                  if (isSelected) {
+                                    setActiveFilters(activeFilters.filter(f => !(f.field === 'namespace' && f.value === namespace)));
+                                  } else {
+                                    // Remove "All" if it exists, then add the specific namespace
+                                    const otherFilters = activeFilters.filter(f => !(f.field === 'namespace' && f.value === 'All'));
+                                    if (!otherFilters.some(f => f.field === 'namespace' && f.value === namespace)) {
+                                      setActiveFilters([...otherFilters, { field: 'namespace', value: namespace }]);
+                                    }
+                                  }
+                                }}
                                 onClick={(e) => e.stopPropagation()}
                               />
                             </FlexItem>
@@ -1982,7 +2024,17 @@ const Pods: React.FunctionComponent = () => {
                           <Checkbox
                             id="status-filter-all"
                             isChecked={activeFilters.some(f => f.field === 'status' && f.value === 'All')}
-                            onChange={() => {}}
+                            onChange={() => {
+                              const isAllSelected = activeFilters.some(f => f.field === 'status' && f.value === 'All');
+                              if (isAllSelected) {
+                                // Unselect "All"
+                                setActiveFilters(activeFilters.filter(f => !(f.field === 'status' && f.value === 'All')));
+                              } else {
+                                // Remove all other status filters and add "All"
+                                const otherFilters = activeFilters.filter(f => f.field !== 'status');
+                                setActiveFilters([...otherFilters, { field: 'status', value: 'All' }]);
+                              }
+                            }}
                             onClick={(e) => e.stopPropagation()}
                           />
                         </FlexItem>
@@ -2018,7 +2070,18 @@ const Pods: React.FunctionComponent = () => {
                               <Checkbox
                                 id={`status-filter-${status}`}
                                 isChecked={isSelected}
-                                onChange={() => {}}
+                                onChange={() => {
+                                  // Toggle selection when clicking the checkbox
+                                  if (isSelected) {
+                                    setActiveFilters(activeFilters.filter(f => !(f.field === 'status' && f.value === status)));
+                                  } else {
+                                    // Remove "All" if it exists, then add the specific status
+                                    const otherFilters = activeFilters.filter(f => !(f.field === 'status' && f.value === 'All'));
+                                    if (!otherFilters.some(f => f.field === 'status' && f.value === status)) {
+                                      setActiveFilters([...otherFilters, { field: 'status', value: status }]);
+                                    }
+                                  }
+                                }}
                                 onClick={(e) => e.stopPropagation()}
                               />
                             </FlexItem>
@@ -2081,7 +2144,17 @@ const Pods: React.FunctionComponent = () => {
                           <Checkbox
                             id="owner-filter-all"
                             isChecked={activeFilters.some(f => f.field === 'owner' && f.value === 'All')}
-                            onChange={() => {}}
+                            onChange={() => {
+                              const isAllSelected = activeFilters.some(f => f.field === 'owner' && f.value === 'All');
+                              if (isAllSelected) {
+                                // Unselect "All"
+                                setActiveFilters(activeFilters.filter(f => !(f.field === 'owner' && f.value === 'All')));
+                              } else {
+                                // Remove all other owner filters and add "All"
+                                const otherFilters = activeFilters.filter(f => f.field !== 'owner');
+                                setActiveFilters([...otherFilters, { field: 'owner', value: 'All' }]);
+                              }
+                            }}
                             onClick={(e) => e.stopPropagation()}
                           />
                         </FlexItem>
@@ -2117,7 +2190,18 @@ const Pods: React.FunctionComponent = () => {
                               <Checkbox
                                 id={`owner-filter-${owner}`}
                                 isChecked={isSelected}
-                                onChange={() => {}}
+                                onChange={() => {
+                                  // Toggle selection when clicking the checkbox
+                                  if (isSelected) {
+                                    setActiveFilters(activeFilters.filter(f => !(f.field === 'owner' && f.value === owner)));
+                                  } else {
+                                    // Remove "All" if it exists, then add the specific owner
+                                    const otherFilters = activeFilters.filter(f => !(f.field === 'owner' && f.value === 'All'));
+                                    if (!otherFilters.some(f => f.field === 'owner' && f.value === owner)) {
+                                      setActiveFilters([...otherFilters, { field: 'owner', value: owner }]);
+                                    }
+                                  }
+                                }}
                                 onClick={(e) => e.stopPropagation()}
                               />
                             </FlexItem>

@@ -8,7 +8,6 @@ import {
   MastheadMain,
   MastheadToggle,
   Nav,
-  NavExpandable,
   NavItem,
   NavList,
   Page,
@@ -16,7 +15,7 @@ import {
   PageSidebarBody,
   SkipToContent,
 } from '@patternfly/react-core';
-import { IAppRoute, IAppRouteGroup, routes } from '@app/routes';
+import { IAppRoute, routes } from '@app/routes';
 import { BarsIcon } from '@patternfly/react-icons';
 import './AppLayout.css';
 
@@ -89,42 +88,29 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
 
   const location = useLocation();
 
-  const renderNavItem = (route: IAppRoute, index: number) => {
-    const isNarrowNavItem = route.label === 'Virtual machines' || route.label === 'Pods';
-    return (
-      <NavItem 
-        key={`${route.label}-${index}`} 
-        id={`${route.label}-${index}`} 
-        isActive={route.path === location.pathname}
-        className={isNarrowNavItem ? 'narrow-nav-item' : ''}
-      >
-        <NavLink
-          to={route.path}
-          style={isNarrowNavItem ? { maxWidth: 'fit-content', width: 'auto' } : undefined}
-        >
-          {route.label}
-        </NavLink>
-      </NavItem>
-    );
-  };
-
-  const renderNavGroup = (group: IAppRouteGroup, groupIndex: number) => (
-    <NavExpandable
-      key={`${group.label}-${groupIndex}`}
-      id={`${group.label}-${groupIndex}`}
-      title={group.label}
-      isActive={group.routes.some((route) => route.path === location.pathname)}
-    >
-      {group.routes.map((route, idx) => route.label && renderNavItem(route, idx))}
-    </NavExpandable>
+  // Filter to only show primary navigation items (Virtual machines and Pods)
+  const primaryNavRoutes = routes.filter(
+    (route): route is IAppRoute => 
+      !route.routes && 
+      route.label !== undefined && 
+      (route.label === 'Virtual machines' || route.label === 'Pods')
   );
 
   const Navigation = (
-    <Nav id="nav-primary-simple">
+    <Nav id="nav-primary-simple" aria-label="Primary navigation">
       <NavList id="nav-list-simple">
-        {routes.map(
-          (route, idx) => route.label && (!route.routes ? renderNavItem(route, idx) : renderNavGroup(route, idx)),
-        )}
+        {primaryNavRoutes.map((route, idx) => (
+          <NavItem 
+            key={`${route.label}-${idx}`} 
+            id={`${route.label}-${idx}`} 
+            itemId={route.path}
+            isActive={route.path === location.pathname || (route.path === '/' && location.pathname === '/virtual-machines')}
+          >
+            <NavLink to={route.path}>
+              {route.label}
+            </NavLink>
+          </NavItem>
+        ))}
       </NavList>
     </Nav>
   );

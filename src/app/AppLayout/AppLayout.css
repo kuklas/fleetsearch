@@ -1,14 +1,31 @@
-/* Make Virtual machines and Pods nav items narrower */
-.narrow-nav-item .pf-v6-c-nav__link {
-  max-width: fit-content !important;
-  width: auto !important;
+/* Make the navigation sidebar narrower to give more space to content */
+.pf-v6-c-page__sidebar,
+.pf-v6-c-page__sidebar.pf-m-expanded {
+  width: 160px !important;
+  min-width: 160px !important;
+  max-width: 160px !important;
+  flex: 0 0 160px !important;
 }
 
-.narrow-nav-item .pf-v6-c-nav__link-text {
+.pf-v6-c-page__sidebar-body {
+  width: 160px !important;
+  min-width: 160px !important;
+  max-width: 160px !important;
+}
+
+/* Keep nav text on a single row */
+.pf-v6-c-nav__item {
+  width: 100% !important;
+}
+
+.pf-v6-c-nav__link {
+  width: 100% !important;
+  padding-right: 8px !important;
   white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  max-width: 100px !important;
+}
+
+.pf-v6-c-nav__link-text {
+  white-space: nowrap !important;
   display: inline-block !important;
 }
 

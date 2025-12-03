@@ -3909,7 +3909,10 @@ const VirtualMachines: React.FunctionComponent = () => {
                                 <Checkbox
                                   id="cluster-filter-all"
                                   isChecked={clusterFilter === 'All'}
-                                  onChange={() => {}}
+                                  onChange={() => {
+                                    setClusterFilter('All');
+                                    setSelectedTreeNode(null); // Clear tree selection when 'All' is chosen
+                                  }}
                                   onClick={(e) => e.stopPropagation()}
                                 />
                               </FlexItem>
@@ -3942,7 +3945,17 @@ const VirtualMachines: React.FunctionComponent = () => {
                                     <Checkbox
                                       id={`cluster-filter-${cluster.id}`}
                                       isChecked={isSelected}
-                                      onChange={() => {}}
+                                      onChange={() => {
+                                        if (isSelected) {
+                                          // Remove from selection
+                                          const newFilter = clusterFilterArray.filter(c => c !== cluster.name);
+                                          setClusterFilter(newFilter.length === 0 ? 'All' : newFilter);
+                                        } else {
+                                          // Add to selection
+                                          const newFilter = clusterFilter === 'All' ? [cluster.name] : [...clusterFilterArray, cluster.name];
+                                          setClusterFilter(newFilter);
+                                        }
+                                      }}
                                       onClick={(e) => e.stopPropagation()}
                                     />
                                   </FlexItem>
@@ -4039,7 +4052,12 @@ const VirtualMachines: React.FunctionComponent = () => {
                                     <Checkbox
                                       id="project-filter-all"
                                       isChecked={projectFilter === 'All' || (Array.isArray(projectFilter) && projectFilter.length === 0)}
-                                      onChange={() => {}}
+                                      onChange={() => {
+                                        setProjectFilter('All');
+                                        if (!selectedClusterFromTree) {
+                                          setIsProjectFilterOpen(false);
+                                        }
+                                      }}
                                       onClick={(e) => e.stopPropagation()}
                                     />
                                   </FlexItem>
@@ -4102,7 +4120,24 @@ const VirtualMachines: React.FunctionComponent = () => {
                                           <Checkbox
                                             id={`project-filter-${namespace.id}`}
                                             isChecked={isSelected}
-                                            onChange={() => {}}
+                                            onChange={() => {
+                                              // Multi-select mode when cluster is selected from tree or "all-clusters" is selected
+                                              if (selectedClusterFromTree || selectedTreeNode === 'all-clusters') {
+                                                if (isSelected) {
+                                                  // Remove from selection
+                                                  const newFilter = projectFilterArray.filter(p => p !== namespace.name);
+                                                  setProjectFilter(newFilter.length === 0 ? 'All' : newFilter);
+                                                } else {
+                                                  // Add to selection
+                                                  const newFilter = projectFilter === 'All' ? [namespace.name] : [...projectFilterArray, namespace.name];
+                                                  setProjectFilter(newFilter);
+                                                }
+                                              } else {
+                                                // Single select mode
+                                                setProjectFilter(namespace.name);
+                                                setIsProjectFilterOpen(false);
+                                              }
+                                            }}
                                             onClick={(e) => e.stopPropagation()}
                                           />
                                         </FlexItem>
@@ -4177,7 +4212,21 @@ const VirtualMachines: React.FunctionComponent = () => {
                                         <Checkbox
                                           id={`status-filter-${status}`}
                                           isChecked={isSelected}
-                                          onChange={() => {}}
+                                          onChange={() => {
+                                            if (status === 'All') {
+                                              setStatusFilter('All');
+                                            } else {
+                                              if (isSelected) {
+                                                // Remove from selection
+                                                const newFilter = statusFilterArray.filter(s => s !== status);
+                                                setStatusFilter(newFilter.length === 0 ? 'All' : newFilter);
+                                              } else {
+                                                // Add to selection
+                                                const newFilter = statusFilter === 'All' ? [status] : [...statusFilterArray, status];
+                                                setStatusFilter(newFilter);
+                                              }
+                                            }
+                                          }}
                                           onClick={(e) => e.stopPropagation()}
                                         />
                                       </FlexItem>
